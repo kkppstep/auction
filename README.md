@@ -100,21 +100,39 @@ which is required for the PWA install prompt and camera/share APIs.
 
 ## Project structure
 
+## How auction posts work
+
+Each upload batch in the admin dashboard becomes one **post** — buyers swipe
+**vertically** between posts (TikTok-style) and **tap left/right** on the
+image to browse photos *within* the current post (Instagram Stories-style).
+This is exactly the "post mechanism" — 50 photos uploaded together show up
+as one swipeable post; the next 50 uploaded later show up as a separate post.
+
+Uploads happen one photo at a time behind the scenes (create the post, then
+stream each photo into it), so 50+ photo batches never hit Vercel's request
+size or timeout limits — you'll see a progress bar in the dashboard.
+
 ```
 app/
-  page.tsx              Home — auction swipe feed
+  page.tsx              Home — auction post feed (vertical swipe)
   sale/page.tsx          Sale — listings with spec tables
   account/page.tsx        Account — contact + admin login link
   admin/login/page.tsx     Admin login
-  admin/dashboard/page.tsx  Admin dashboard (photos / cars / offers / settings)
+  admin/dashboard/page.tsx  Admin dashboard (posts / cars / offers / settings)
   api/offer/route.ts       Buyer submits a price offer (also triggers push)
   api/push/register/route.ts Device registers for push notifications
+  api/admin/posts/route.ts   Create/edit/delete a post
+  api/admin/posts/[postId]/photos/route.ts  Add/remove one photo in a post
   api/admin/*               Admin-only API routes (protected by middleware.ts)
-components/                Auction feed, cards, offer modal, sale table, nav
-components/PushNotificationSetup.tsx  Registers admin device for push (dashboard only)
+components/
+  AuctionFeed.tsx            Vertical swipe between posts
+  AuctionPostCard.tsx         Tap left/right to browse photos in one post
+  AuctionCard.tsx              Renders a single photo + action rail
+  PushNotificationSetup.tsx    Registers admin device for push (dashboard only)
 lib/supabase/               Browser + server Supabase clients
 lib/auth.ts                 Admin session (signed JWT cookie)
 lib/push.ts                  Sends push notifications via Firebase Cloud Messaging
+lib/storage.ts                Maps a public Supabase URL back to its storage path
 supabase/schema.sql          Full DB schema + RLS + storage bucket
 ```
 

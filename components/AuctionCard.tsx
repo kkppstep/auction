@@ -7,24 +7,23 @@ import { Heart, Share2, Tag } from "lucide-react";
 export type AuctionPhoto = {
   id: string;
   image_url: string;
-  caption: string | null;
-  likes_count: number;
-  cars?: {
-    title: string | null;
-    model: string | null;
-    price: number | null;
-  } | null;
 };
 
 export default function AuctionCard({
   photo,
+  caption,
+  likesCount,
+  car,
   onOffer,
 }: {
   photo: AuctionPhoto;
+  caption: string | null;
+  likesCount: number;
+  car?: { title: string | null } | null;
   onOffer: (photo: AuctionPhoto) => void;
 }) {
   const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(photo.likes_count ?? 0);
+  const [likeCount, setLikeCount] = useState(likesCount ?? 0);
 
   function toggleLike() {
     setLiked((v) => !v);
@@ -34,7 +33,7 @@ export default function AuctionCard({
   async function handleShare() {
     const shareData = {
       title: "YBC — Your Board Car",
-      text: photo.caption ?? photo.cars?.title ?? "ကားတစ်စီးကြည့်ပါ",
+      text: caption ?? car?.title ?? "ကားတစ်စီးကြည့်ပါ",
       url: typeof window !== "undefined" ? window.location.href : "",
     };
     try {
@@ -58,7 +57,7 @@ export default function AuctionCard({
     <div className="relative h-full w-full select-none overflow-hidden rounded-2xl bg-surface">
       <Image
         src={photo.image_url}
-        alt={photo.caption ?? "ကားပုံ"}
+        alt={caption ?? "ကားပုံ"}
         fill
         draggable={false}
         className="pointer-events-none object-cover"
@@ -68,14 +67,10 @@ export default function AuctionCard({
 
       {/* bottom gradient + car info */}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent p-4 pb-6">
-        {photo.cars?.title && (
-          <p className="font-display text-2xl tracking-wide text-ivory">
-            {photo.cars.title}
-          </p>
+        {car?.title && (
+          <p className="font-display text-2xl tracking-wide text-ivory">{car.title}</p>
         )}
-        {photo.caption && (
-          <p className="mt-0.5 text-sm text-chrome">{photo.caption}</p>
-        )}
+        {caption && <p className="mt-0.5 text-sm text-chrome">{caption}</p>}
       </div>
 
       {/* TikTok-style right action rail */}
@@ -92,9 +87,7 @@ export default function AuctionCard({
           >
             <Heart size={22} fill={liked ? "currentColor" : "none"} />
           </span>
-          <span className="text-xs tabular-nums text-ivory drop-shadow">
-            {likeCount}
-          </span>
+          <span className="text-xs tabular-nums text-ivory drop-shadow">{likeCount}</span>
         </button>
 
         <button

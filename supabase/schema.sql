@@ -94,8 +94,43 @@ create table if not exists push_tokens (
 );
 alter table push_tokens enable row level security;
 -- no public policy — only accessible via the service role key (API routes)
+-- 7. Auction posts — one upload batch = one post. Buyers swipe vertically
+-- between posts, and horizontally between photos inside a post.
+create table if not exists auction_posts (
+  id uuid primary key default gen_random_uuid(),
+  caption text,
+  car_id uuid references cars(id) on delete set null,
+  likes_count int not null default 0,
+  is_active boolean not null default true,
+  created_at timestamptz default now()
+);
+alter table auction_posts enable row level security;
+create policy "public read auction_posts" on auction_posts for select using (true);
+
+alter table auction_photos add column if not exists post_id uuid references auction_posts(id) on delete cascade;
+
+-- Migrate any existing standalone photos (from before posts existed) into
+-- their own single-photo post so they don't disappear from the feed.
+do $$
+declare
+  r record;
+  new_post_id uuid;
+begin
+  for r in select * from auction_photos where post_id is null loop
+    insert into auction_posts (caption, car_id, is_active, created_at)
+    values (r.caption, r.car_id, r.is_active, r.created_at)
+    returning id into new_post_id;
+
+    update auction_photos set post_id = new_post_id where id = r.id;
+  end loop;
+end $$;
+
 -- ---------------------------------------------------------------------
 -- Create your first admin account. Generate a bcrypt hash first, e.g.
+-- with Node:  node -e "console.log(require('bcryptjs').hashSync('yourpassword', 10))"
+-- then run:
+-- insert into admins (username, password_hash) values ('admin', '<paste hash here>');
+-- ---------------------------------------------------------------------
 -- with Node:  node -e "console.log(require('bcryptjs').hashSync('yourpassword', 10))"
 -- then run:
 -- insert into admins (username, password_hash) values ('admin', '<paste hash here>');

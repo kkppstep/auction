@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import AuctionCard, { AuctionPhoto } from "./AuctionCard";
+import AuctionPostCard, { AuctionPost } from "./AuctionPostCard";
+import { AuctionPhoto } from "./AuctionCard";
 import PriceOfferModal from "./PriceOfferModal";
 
 const SWIPE_THRESHOLD = 80;
 
 export default function AuctionFeed() {
-  const [photos, setPhotos] = useState<AuctionPhoto[]>([]);
+  const [posts, setPosts] = useState<AuctionPost[]>([]);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [offerPhoto, setOfferPhoto] = useState<AuctionPhoto | null>(null);
@@ -19,12 +20,20 @@ export default function AuctionFeed() {
     let active = true;
     async function load() {
       const { data } = await supabaseBrowser
-        .from("auction_photos")
-        .select("id, image_url, caption, likes_count, cars(title, model, price)")
+        .from("auction_posts")
+        .select("id, caption, likes_count, cars(title), auction_photos(id, image_url)")
         .eq("is_active", true)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .order("created_at", { foreignTable: "auction_photos", ascending: true });
+
+      // Posts with zero photos (shouldn't normally happen, but be defensive)
+      // shouldn't show up as blank cards.
+      const withPhotos = ((data as unknown as AuctionPost[]) ?? []).filter(
+        (p) => p.auction_photos?.length > 0
+      );
+
       if (active) {
-        setPhotos((data as unknown as AuctionPhoto[]) ?? []);
+        setPosts(withPhotos);
         setLoading(false);
       }
     }
@@ -35,10 +44,10 @@ export default function AuctionFeed() {
   }, []);
 
   function handleDragEnd(_: unknown, info: PanInfo) {
-    if (info.offset.x < -SWIPE_THRESHOLD && index < photos.length - 1) {
+    if (info.offset.y < -SWIPE_THRESHOLD && index < posts.length - 1) {
       setDirection(1);
       setIndex((i) => i + 1);
-    } else if (info.offset.x > SWIPE_THRESHOLD && index > 0) {
+    } else if (info.offset.y > SWIPE_THRESHOLD && index > 0) {
       setDirection(-1);
       setIndex((i) => i - 1);
     }
@@ -52,7 +61,7 @@ export default function AuctionFeed() {
     );
   }
 
-  if (photos.length === 0) {
+  if (posts.length === 0) {
     return (
       <div className="flex h-[calc(100vh-9rem)] flex-col items-center justify-center gap-2 px-8 text-center text-chrome">
         <p className="font-display text-2xl text-ivory">
@@ -63,7 +72,7 @@ export default function AuctionFeed() {
     );
   }
 
-  const current = photos[index];
+  const current = posts[index];
 
   return (
     <div className="relative h-[calc(100vh-9rem)] w-full overflow-hidden px-3 pt-3">
@@ -72,27 +81,25 @@ export default function AuctionFeed() {
           key={current.id}
           className="h-full w-full"
           custom={direction}
-          drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
+          drag="y"
+          dragConstraints={{ top: 0, bottom: 0 }}
           dragElastic={0.6}
           onDragEnd={handleDragEnd}
-          initial={{ x: direction >= 0 ? 60 : -60, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: direction >= 0 ? -60 : 60, opacity: 0 }}
+          initial={{ y: direction >= 0 ? 60 : -60, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: direction >= 0 ? -60 : 60, opacity: 0 }}
           transition={{ type: "spring", damping: 30, stiffness: 260 }}
         >
-          <AuctionCard photo={current} onOffer={setOfferPhoto} />
+          <AuctionPostCard post={current} onOffer={setOfferPhoto} />
         </motion.div>
       </AnimatePresence>
 
-      {/* progress dots */}
-      <div className="pointer-events-none absolute left-0 right-0 top-1 flex justify-center gap-1.5">
-        {photos.map((p, i) => (
+      {/* post-position indicator (right edge, vertical) */}
+      <div className="pointer-events-none absolute bottom-3 right-1 top-3 flex w-1 flex-col gap-1">
+        {posts.map((p, i) => (
           <span
             key={p.id}
-            className={`h-1 flex-1 max-w-8 rounded-full ${
-              i === index ? "bg-amber" : "bg-white/15"
-            }`}
+            className={`flex-1 rounded-full ${i === index ? "bg-amber" : "bg-white/15"}`}
           />
         ))}
       </div>

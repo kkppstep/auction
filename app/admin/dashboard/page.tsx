@@ -16,11 +16,11 @@ import {
 } from "lucide-react";
 import PushNotificationSetup from "@/components/PushNotificationSetup";
 
-type Tab = "photos" | "cars" | "offers" | "settings";
+type Tab = "posts" | "cars" | "offers" | "settings";
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("photos");
+  const [tab, setTab] = useState<Tab>("posts");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,7 +41,7 @@ export default function AdminDashboard() {
   }
 
   const TABS: { key: Tab; label: string; icon: any }[] = [
-    { key: "photos", label: "Auction ပုံ", icon: ImageIcon },
+    { key: "posts", label: "Auction ပို့စ်", icon: ImageIcon },
     { key: "cars", label: "Sale ကား", icon: Car },
     { key: "offers", label: "စျေးများ", icon: Inbox },
     { key: "settings", label: "Settings", icon: SettingsIcon },
@@ -79,8 +79,8 @@ export default function AdminDashboard() {
       <main className="px-4 py-5">
         {loading || !data ? (
           <p className="text-chrome">Loading…</p>
-        ) : tab === "photos" ? (
-          <PhotosTab photos={data.photos} cars={data.cars} onChange={refresh} />
+        ) : tab === "posts" ? (
+          <PostsTab posts={data.posts} cars={data.cars} onChange={refresh} />
         ) : tab === "cars" ? (
           <CarsTab cars={data.cars} onChange={refresh} />
         ) : tab === "offers" ? (
@@ -93,14 +93,14 @@ export default function AdminDashboard() {
   );
 }
 
-/* ---------------- Auction Photos ---------------- */
+/* ---------------- Auction Posts ---------------- */
 
-function PhotosTab({
-  photos,
+function PostsTab({
+  posts,
   cars,
   onChange,
 }: {
-  photos: any[];
+  posts: any[];
   cars: any[];
   onChange: () => void;
 }) {
@@ -108,32 +108,64 @@ function PhotosTab({
   const [caption, setCaption] = useState("");
   const [carId, setCarId] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editCaption, setEditCaption] = useState("");
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
     if (!files || files.length === 0) return;
     setUploading(true);
     setError(null);
-    const fd = new FormData();
-    Array.from(files).forEach((f) => fd.append("files", f));
-    fd.append("caption", caption);
-    if (carId) fd.append("car_id", carId);
 
-    const res = await fetch("/api/admin/photos", { method: "POST", body: fd });
-    const json = await res.json();
-    setUploading(false);
-    if (!res.ok) {
-      setError(json.error);
-      return;
+    try {
+      // 1. Create the post first (caption + linked car, no files yet).
+      const postRes = await fetch("/api/admin/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caption, car_id: carId || null }),
+      });
+      const postJson = await postRes.json();
+      if (!postRes.ok) throw new Error(postJson.error);
+      const postId = postJson.post.id;
+
+      // 2. Upload photos one at a time into that post. Sending 50+ photos
+      // in a single request risks hitting Vercel's request size/time
+      // limits, so each photo is its own small request instead — this
+      // batch becomes one swipeable post, exactly like a single upload
+      // session becoming one post in a feed.
+      const fileArray = Array.from(files);
+      setProgress({ done: 0, total: fileArray.length });
+
+      for (let i = 0; i < fileArray.length; i++) {
+        const fd = new FormData();
+        fd.append("file", fileArray[i]);
+        const res = await fetch(`/api/admin/posts/${postId}/photos`, {
+          method: "POST",
+          body: fd,
+        });
+        if (!res.ok) {
+          const json = await res.json();
+          throw new Error(`Photo ${i + 1}/${fileArray.length}: ${json.error}`);
+        }
+        setProgress({ done: i + 1, total: fileArray.length });
+      }
+
+      setFiles(null);
+      setCaption("");
+      setCarId("");
+      onChange();
+    } catch (err: any) {
+      setError(err.message ?? "Upload failed.");
+    } finally {
+      setUploading(false);
+      setProgress(null);
     }
-    setFiles(null);
-    setCaption("");
-    onChange();
   }
 
   async function toggleActive(id: string, is_active: boolean) {
-    await fetch("/api/admin/photos", {
+    await fetch("/api/admin/posts", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, is_active: !is_active }),
@@ -141,12 +173,31 @@ function PhotosTab({
     onChange();
   }
 
-  async function remove(id: string) {
-    if (!confirm("ဒီပုံကို ဖျက်မှာ သေချာလား?")) return;
-    await fetch("/api/admin/photos", {
+  async function saveCaption(id: string) {
+    await fetch("/api/admin/posts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, caption: editCaption }),
+    });
+    setEditingId(null);
+    onChange();
+  }
+
+  async function removePost(id: string) {
+    if (!confirm("ဒီ post တစ်ခုလုံးကို ဖျက်မှာ သေချာလား? ပုံအားလုံးပါ ပျက်သွားပါမည်။")) return;
+    await fetch("/api/admin/posts", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
+    });
+    onChange();
+  }
+
+  async function removePhoto(postId: string, photoId: string) {
+    await fetch(`/api/admin/posts/${postId}/photos`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ photoId }),
     });
     onChange();
   }
@@ -157,7 +208,7 @@ function PhotosTab({
         onSubmit={handleUpload}
         className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-surface p-4"
       >
-        <h2 className="font-display text-xl text-ivory">Auction ပုံအသစ်တင်မည်</h2>
+        <h2 className="font-display text-xl text-ivory">Post အသစ်တင်မည် (ပုံ 50+ ရနိုင်)</h2>
         <input
           type="file"
           multiple
@@ -165,6 +216,9 @@ function PhotosTab({
           onChange={(e) => setFiles(e.target.files)}
           className="text-sm text-chrome file:mr-3 file:rounded-lg file:border-0 file:bg-amber file:px-3 file:py-2 file:text-asphalt"
         />
+        {files && (
+          <p className="text-xs text-chrome">{files.length} ပုံ ရွေးထားသည်</p>
+        )}
         <input
           placeholder="Caption (optional)"
           value={caption}
@@ -184,34 +238,97 @@ function PhotosTab({
           ))}
         </select>
         {error && <p className="text-sm text-ember">{error}</p>}
+        {progress && (
+          <div className="flex flex-col gap-1">
+            <div className="h-2 overflow-hidden rounded-full bg-surface2">
+              <div
+                className="h-full bg-amber transition-all"
+                style={{ width: `${(progress.done / progress.total) * 100}%` }}
+              />
+            </div>
+            <p className="text-xs text-chrome">
+              {progress.done} / {progress.total} ပုံ တင်ပြီးပါပြီ
+            </p>
+          </div>
+        )}
         <button
           type="submit"
           disabled={uploading}
           className="flex items-center justify-center gap-2 rounded-xl bg-amber py-3 font-display text-lg text-asphalt disabled:opacity-60"
         >
-          <Upload size={18} /> {uploading ? "တင်နေသည်…" : "Upload"}
+          <Upload size={18} /> {uploading ? "တင်နေသည်…" : "Post အသစ်တင်မည်"}
         </button>
       </form>
 
-      <div className="grid grid-cols-2 gap-3">
-        {photos.map((p: any) => (
+      <div className="flex flex-col gap-4">
+        {posts.map((post: any) => (
           <div
-            key={p.id}
-            className="overflow-hidden rounded-xl border border-white/10 bg-surface"
+            key={post.id}
+            className="rounded-2xl border border-white/10 bg-surface p-3"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.image_url} alt="" className="h-32 w-full object-cover" />
-            <div className="flex items-center justify-between p-2">
-              <button onClick={() => toggleActive(p.id, p.is_active)} title="Toggle visible">
-                {p.is_active ? (
-                  <Eye size={16} className="text-amber" />
-                ) : (
-                  <EyeOff size={16} className="text-chrome" />
-                )}
+            <div className="no-scrollbar mb-2 flex gap-2 overflow-x-auto">
+              {post.auction_photos.map((p: any) => (
+                <div key={p.id} className="relative shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={p.image_url}
+                    alt=""
+                    className="h-24 w-24 rounded-lg object-cover"
+                  />
+                  <button
+                    onClick={() => removePhoto(post.id, p.id)}
+                    className="absolute -right-1 -top-1 rounded-full bg-asphalt p-1"
+                    title="ဒီပုံတစ်ပုံတည်း ဖျက်မည်"
+                  >
+                    <Trash2 size={12} className="text-ember" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {editingId === post.id ? (
+              <div className="flex gap-2">
+                <input
+                  value={editCaption}
+                  onChange={(e) => setEditCaption(e.target.value)}
+                  className="input"
+                  autoFocus
+                />
+                <button
+                  onClick={() => saveCaption(post.id)}
+                  className="shrink-0 rounded-lg bg-amber px-3 text-sm text-asphalt"
+                >
+                  သိမ်းမည်
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setEditingId(post.id);
+                  setEditCaption(post.caption ?? "");
+                }}
+                className="text-left text-sm text-ivory underline decoration-dotted"
+              >
+                {post.caption || "Caption ထည့်ရန် နှိပ်ပါ"}
               </button>
-              <button onClick={() => remove(p.id)}>
-                <Trash2 size={16} className="text-ember" />
-              </button>
+            )}
+
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-xs text-chrome">
+                {post.auction_photos.length} ပုံ
+              </span>
+              <div className="flex items-center gap-3">
+                <button onClick={() => toggleActive(post.id, post.is_active)} title="Toggle visible">
+                  {post.is_active ? (
+                    <Eye size={16} className="text-amber" />
+                  ) : (
+                    <EyeOff size={16} className="text-chrome" />
+                  )}
+                </button>
+                <button onClick={() => removePost(post.id)}>
+                  <Trash2 size={16} className="text-ember" />
+                </button>
+              </div>
             </div>
           </div>
         ))}
