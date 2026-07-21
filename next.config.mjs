@@ -1,17 +1,25 @@
-# Supabase project settings (Project Settings → API)
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+      },
+    ],
+  },
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ];
+  },
+};
 
-# Service role key — server-only, NEVER expose to the browser.
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-
-# Random long string used to sign admin login session cookies.
-# Generate one with: openssl rand -base64 32
-SESSION_SECRET=replace-with-a-long-random-string
-
-# Firebase service account JSON (base64-encoded), used to send push
-# notifications to the admin's Android app when a new offer comes in.
-# Firebase Console → Project settings → Service accounts → Generate new
-# private key → download the JSON → base64 it → paste here.
-# Optional: leave unset and push notifications are silently skipped.
-FIREBASE_SERVICE_ACCOUNT_JSON=
+export default nextConfig;
