@@ -1,38 +1,34 @@
-import type { Config } from "tailwindcss";
-
-const config: Config = {
-  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
-  theme: {
-    extend: {
-      colors: {
-        asphalt: "#14161A",
-        surface: "#1E2127",
-        surface2: "#262A32",
-        chrome: "#C8CDD4",
-        ivory: "#F4F3EF",
-        amber: "#FFB020",
-        ember: "#FF5A3D",
-        steel: "#3E6B8A",
-        steel2: "#5A8AAE",
-      },
-      fontFamily: {
-        display: ["var(--font-display)", "sans-serif"],
-        body: ["var(--font-body)", "sans-serif"],
-      },
-      boxShadow: {
-        gauge: "0 0 0 1px rgba(255,176,32,0.25), 0 8px 24px rgba(0,0,0,0.45)",
-      },
-      keyframes: {
-        "pulse-ring": {
-          "0%": { transform: "scale(0.9)", opacity: "0.6" },
-          "100%": { transform: "scale(1.4)", opacity: "0" },
-        },
-      },
-      animation: {
-        "pulse-ring": "pulse-ring 1.4s ease-out infinite",
-      },
-    },
+{
+  "name": "ybc-your-board-car",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
-  plugins: [],
-};
-export default config;
+  "dependencies": {
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/push-notifications": "^6.0.2",
+    "@capacitor/share": "^6.0.2",
+    "@supabase/supabase-js": "^2.45.4",
+    "bcryptjs": "^2.4.3",
+    "framer-motion": "^11.5.4",
+    "jose": "^5.9.3",
+    "lucide-react": "^0.445.0",
+    "next": "14.2.13",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.14.15",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.45",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.5.4"
+  }
+}
