@@ -15,18 +15,33 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const res = await fetch("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
-    setLoading(false);
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error ?? "Login failed.");
-      return;
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        // Response had no/invalid JSON body (e.g. a server crash or timeout).
+      }
+
+      if (!res.ok) {
+        setError(
+          data?.error ?? `Login failed (server returned ${res.status}). Please try again.`
+        );
+        return;
+      }
+
+      router.push("/admin/dashboard");
+    } catch (err: any) {
+      setError(err?.message ?? "Network error — please check your connection.");
+    } finally {
+      setLoading(false);
     }
-    router.push("/admin/dashboard");
   }
 
   return (

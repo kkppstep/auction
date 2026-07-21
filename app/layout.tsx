@@ -24,6 +24,9 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "YBC",
   },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport: Viewport = {
