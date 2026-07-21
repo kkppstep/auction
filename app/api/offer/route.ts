@@ -2,52 +2,44 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest) {
-  try {
-    const { auction_photo_id, image_url, offer_price, buyer_viber_number } =
-      await req.json();
+  const { auction_photo_id, image_url, offer_price, buyer_viber_number } =
+    await req.json();
 
-    if (!offer_price || !buyer_viber_number) {
-      return NextResponse.json(
-        { error: "ပေးနိုင်သော စျေး နှင့် Viber နံပါတ် လိုအပ်ပါသည်။" },
-        { status: 400 }
-      );
-    }
-
-    const { error } = await supabaseAdmin.from("offers").insert({
-      auction_photo_id,
-      image_url,
-      offer_price,
-      buyer_viber_number,
-    });
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    // Pull the admin's current contact routing so the client can open
-    // Viber / Telegram with the offer pre-filled.
-    const { data: settings } = await supabaseAdmin
-      .from("settings")
-      .select("key, value");
-
-    const settingsMap = Object.fromEntries(
-      (settings ?? []).map((s) => [s.key, s.value])
-    );
-
-    const message = `YBC ခ်စ်ကားပွဲ - စျေးတင်ခြင်း\nပုံ- ${image_url}\nပေးနိုင်သော စျေး- ${offer_price}\nဆက်သွယ်ရန် Viber- ${buyer_viber_number}`;
-
-    return NextResponse.json({
-      ok: true,
-      message,
-      viberNumber: settingsMap.admin_viber_number ?? null,
-      telegramUsername: settingsMap.admin_telegram_username ?? null,
-      preferredChannel: settingsMap.preferred_channel ?? "viber",
-    });
-  } catch (err: any) {
-    console.error("Offer submission error:", err);
+  if (!offer_price || !buyer_viber_number) {
     return NextResponse.json(
-      { error: err?.message ?? "Unexpected server error." },
-      { status: 500 }
+      { error: "ပေးနိုင်သော စျေး နှင့် Viber နံပါတ် လိုအပ်ပါသည်။" },
+      { status: 400 }
     );
   }
+
+  const { error } = await supabaseAdmin.from("offers").insert({
+    auction_photo_id,
+    image_url,
+    offer_price,
+    buyer_viber_number,
+  });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Pull the admin's current contact routing so the client can open
+  // Viber / Telegram with the offer pre-filled.
+  const { data: settings } = await supabaseAdmin
+    .from("settings")
+    .select("key, value");
+
+  const settingsMap = Object.fromEntries(
+    (settings ?? []).map((s) => [s.key, s.value])
+  );
+
+  const message = `YBC ခ်စ်ကားပွဲ - စျေးတင်ခြင်း\nပုံ- ${image_url}\nပေးနိုင်သော စျေး- ${offer_price}\nဆက်သွယ်ရန် Viber- ${buyer_viber_number}`;
+
+  return NextResponse.json({
+    ok: true,
+    message,
+    viberNumber: settingsMap.admin_viber_number ?? null,
+    telegramUsername: settingsMap.admin_telegram_username ?? null,
+    preferredChannel: settingsMap.preferred_channel ?? "viber",
+  });
 }
