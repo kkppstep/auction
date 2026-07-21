@@ -1,0 +1,120 @@
+"use client";
+
+import { useState } from "react";
+import Image from "next/image";
+import { Heart, Share2, Tag } from "lucide-react";
+
+export type AuctionPhoto = {
+  id: string;
+  image_url: string;
+  caption: string | null;
+  likes_count: number;
+  cars?: {
+    title: string | null;
+    model: string | null;
+    price: number | null;
+  } | null;
+};
+
+export default function AuctionCard({
+  photo,
+  onOffer,
+}: {
+  photo: AuctionPhoto;
+  onOffer: (photo: AuctionPhoto) => void;
+}) {
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(photo.likes_count ?? 0);
+
+  function toggleLike() {
+    setLiked((v) => !v);
+    setLikeCount((c) => (liked ? c - 1 : c + 1));
+  }
+
+  async function handleShare() {
+    const shareData = {
+      title: "YBC — Your Board Car",
+      text: photo.caption ?? photo.cars?.title ?? "ကားတစ်စီးကြည့်ပါ",
+      url: typeof window !== "undefined" ? window.location.href : "",
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareData.url);
+      }
+    } catch {
+      /* user cancelled share sheet, ignore */
+    }
+  }
+
+  return (
+    <div className="relative h-full w-full select-none overflow-hidden rounded-2xl bg-surface">
+      <Image
+        src={photo.image_url}
+        alt={photo.caption ?? "ကားပုံ"}
+        fill
+        draggable={false}
+        className="pointer-events-none object-cover"
+        sizes="(max-width: 480px) 100vw, 448px"
+        priority
+      />
+
+      {/* bottom gradient + car info */}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent p-4 pb-6">
+        {photo.cars?.title && (
+          <p className="font-display text-2xl tracking-wide text-ivory">
+            {photo.cars.title}
+          </p>
+        )}
+        {photo.caption && (
+          <p className="mt-0.5 text-sm text-chrome">{photo.caption}</p>
+        )}
+      </div>
+
+      {/* TikTok-style right action rail */}
+      <div className="absolute bottom-24 right-3 flex flex-col items-center gap-5">
+        <button
+          onClick={toggleLike}
+          className="flex flex-col items-center gap-1"
+          aria-label="Love"
+        >
+          <span
+            className={`flex h-12 w-12 items-center justify-center rounded-full backdrop-blur ${
+              liked ? "bg-ember text-white" : "bg-black/40 text-ivory"
+            }`}
+          >
+            <Heart size={22} fill={liked ? "currentColor" : "none"} />
+          </span>
+          <span className="text-xs tabular-nums text-ivory drop-shadow">
+            {likeCount}
+          </span>
+        </button>
+
+        <button
+          onClick={() => onOffer(photo)}
+          className="flex flex-col items-center gap-1"
+          aria-label="Price offer"
+        >
+          <span className="gauge-ring flex h-12 w-12 items-center justify-center rounded-full bg-amber text-asphalt">
+            <Tag size={20} />
+          </span>
+          <span className="font-display text-xs tracking-wide text-amber drop-shadow">
+            စျေး
+          </span>
+        </button>
+
+        <button
+          onClick={handleShare}
+          className="flex flex-col items-center gap-1"
+          aria-label="Share"
+        >
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/40 text-ivory backdrop-blur">
+            <Share2 size={20} />
+          </span>
+          <span className="text-xs text-ivory drop-shadow">Share</span>
+        </button>
+      </div>
+    </div>
+  );
+}
