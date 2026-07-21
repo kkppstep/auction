@@ -7,14 +7,17 @@ import AuctionPostCard, { AuctionPost } from "./AuctionPostCard";
 import { AuctionPhoto } from "./AuctionCard";
 import PriceOfferModal from "./PriceOfferModal";
 
-const SWIPE_THRESHOLD = 80;
+const SWIPE_THRESHOLD = 60;
+
+type Transition = { axis: "x" | "y"; direction: 1 | -1 } | null;
 
 export default function AuctionFeed() {
   const [posts, setPosts] = useState<AuctionPost[]>([]);
-  const [index, setIndex] = useState(0);
+  const [postIndex, setPostIndex] = useState(0);
+  const [photoIndex, setPhotoIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [offerPhoto, setOfferPhoto] = useState<AuctionPhoto | null>(null);
-  const [direction, setDirection] = useState(0);
+  const [transition, setTransition] = useState<Transition>(null);
 
   useEffect(() => {
     let active = true;
@@ -26,8 +29,6 @@ export default function AuctionFeed() {
         .order("created_at", { ascending: false })
         .order("created_at", { foreignTable: "auction_photos", ascending: true });
 
-      // Posts with zero photos (shouldn't normally happen, but be defensive)
-      // shouldn't show up as blank cards.
       const withPhotos = ((data as unknown as AuctionPost[]) ?? []).filter(
         (p) => p.auction_photos?.length > 0
       );
@@ -43,13 +44,34 @@ export default function AuctionFeed() {
     };
   }, []);
 
+  const currentPost = posts[postIndex];
+
   function handleDragEnd(_: unknown, info: PanInfo) {
-    if (info.offset.y < -SWIPE_THRESHOLD && index < posts.length - 1) {
-      setDirection(1);
-      setIndex((i) => i + 1);
-    } else if (info.offset.y > SWIPE_THRESHOLD && index > 0) {
-      setDirection(-1);
-      setIndex((i) => i - 1);
+    const { x, y } = info.offset;
+
+    // Whichever axis moved further decides the gesture — horizontal browses
+    // photos inside the current post, vertical moves between posts.
+    if (Math.abs(x) > Math.abs(y)) {
+      if (Math.abs(x) < SWIPE_THRESHOLD) return;
+      const photos = currentPost.auction_photos;
+      if (x < 0 && photoIndex < photos.length - 1) {
+        setTransition({ axis: "x", direction: 1 });
+        setPhotoIndex((i) => i + 1);
+      } else if (x > 0 && photoIndex > 0) {
+        setTransition({ axis: "x", direction: -1 });
+        setPhotoIndex((i) => i - 1);
+      }
+    } else {
+      if (Math.abs(y) < SWIPE_THRESHOLD) return;
+      if (y < 0 && postIndex < posts.length - 1) {
+        setTransition({ axis: "y", direction: 1 });
+        setPostIndex((i) => i + 1);
+        setPhotoIndex(0);
+      } else if (y > 0 && postIndex > 0) {
+        setTransition({ axis: "y", direction: -1 });
+        setPostIndex((i) => i - 1);
+        setPhotoIndex(0);
+      }
     }
   }
 
@@ -72,25 +94,41 @@ export default function AuctionFeed() {
     );
   }
 
-  const current = posts[index];
+  const offsetFor = (dir: 1 | -1, axis: "x" | "y") => {
+    const distance = axis === "x" ? 70 : 60;
+    return dir >= 0 ? distance : -distance;
+  };
+
+  const initial =
+    transition == null
+      ? { opacity: 1 }
+      : transition.axis === "x"
+      ? { x: offsetFor(transition.direction, "x"), opacity: 0 }
+      : { y: offsetFor(transition.direction, "y"), opacity: 0 };
+
+  const exit =
+    transition == null
+      ? { opacity: 0 }
+      : transition.axis === "x"
+      ? { x: -offsetFor(transition.direction, "x"), opacity: 0 }
+      : { y: -offsetFor(transition.direction, "y"), opacity: 0 };
 
   return (
     <div className="relative h-[calc(100vh-9rem)] w-full overflow-hidden px-3 pt-3">
-      <AnimatePresence initial={false} custom={direction} mode="popLayout">
+      <AnimatePresence initial={false} mode="popLayout">
         <motion.div
-          key={current.id}
+          key={`${currentPost.id}-${photoIndex}`}
           className="h-full w-full"
-          custom={direction}
-          drag="y"
-          dragConstraints={{ top: 0, bottom: 0 }}
+          drag
+          dragConstraints={{ top: 0, bottom: 0, left: 0, right: 0 }}
           dragElastic={0.6}
           onDragEnd={handleDragEnd}
-          initial={{ y: direction >= 0 ? 60 : -60, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: direction >= 0 ? -60 : 60, opacity: 0 }}
+          initial={initial}
+          animate={{ x: 0, y: 0, opacity: 1 }}
+          exit={exit}
           transition={{ type: "spring", damping: 30, stiffness: 260 }}
         >
-          <AuctionPostCard post={current} onOffer={setOfferPhoto} />
+          <AuctionPostCard post={currentPost} photoIndex={photoIndex} onOffer={setOfferPhoto} />
         </motion.div>
       </AnimatePresence>
 
@@ -99,7 +137,7 @@ export default function AuctionFeed() {
         {posts.map((p, i) => (
           <span
             key={p.id}
-            className={`flex-1 rounded-full ${i === index ? "bg-amber" : "bg-white/15"}`}
+            className={`flex-1 rounded-full ${i === postIndex ? "bg-amber" : "bg-white/15"}`}
           />
         ))}
       </div>

@@ -93,6 +93,20 @@ export default function AdminDashboard() {
   );
 }
 
+async function checkOk(res: Response) {
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`;
+    try {
+      const data = await res.json();
+      if (data?.error) message = data.error;
+    } catch {
+      /* body wasn't JSON — keep the generic message */
+    }
+    throw new Error(message);
+  }
+  return res;
+}
+
 /* ---------------- Auction Posts ---------------- */
 
 function PostsTab({
@@ -165,41 +179,65 @@ function PostsTab({
   }
 
   async function toggleActive(id: string, is_active: boolean) {
-    await fetch("/api/admin/posts", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, is_active: !is_active }),
-    });
-    onChange();
+    try {
+      await checkOk(
+        await fetch("/api/admin/posts", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, is_active: !is_active }),
+        })
+      );
+      onChange();
+    } catch (err: any) {
+      alert(err.message ?? "Failed to update post visibility.");
+    }
   }
 
   async function saveCaption(id: string) {
-    await fetch("/api/admin/posts", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, caption: editCaption }),
-    });
-    setEditingId(null);
-    onChange();
+    try {
+      await checkOk(
+        await fetch("/api/admin/posts", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, caption: editCaption }),
+        })
+      );
+      setEditingId(null);
+      onChange();
+    } catch (err: any) {
+      alert(err.message ?? "Failed to save caption.");
+    }
   }
 
   async function removePost(id: string) {
     if (!confirm("ဒီ post တစ်ခုလုံးကို ဖျက်မှာ သေချာလား? ပုံအားလုံးပါ ပျက်သွားပါမည်။")) return;
-    await fetch("/api/admin/posts", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    onChange();
+    try {
+      await checkOk(
+        await fetch("/api/admin/posts", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        })
+      );
+      onChange();
+    } catch (err: any) {
+      alert(err.message ?? "Failed to delete post.");
+    }
   }
 
   async function removePhoto(postId: string, photoId: string) {
-    await fetch(`/api/admin/posts/${postId}/photos`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ photoId }),
-    });
-    onChange();
+    try {
+      await checkOk(
+        await fetch(`/api/admin/posts/${postId}/photos`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ photoId }),
+        })
+      );
+      onChange();
+    } catch (err: any) {
+      alert(err.message ?? "Failed to delete photo.");
+    }
   }
 
   return (
@@ -341,51 +379,96 @@ function PostsTab({
 
 function CarsTab({ cars, onChange }: { cars: any[]; onChange: () => void }) {
   const [open, setOpen] = useState(false);
+  const [editingCar, setEditingCar] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true);
     setError(null);
-    const fd = new FormData(e.currentTarget);
-    const res = await fetch("/api/admin/cars", { method: "POST", body: fd });
-    const json = await res.json();
-    setSaving(false);
-    if (!res.ok) {
-      setError(json.error);
-      return;
+    try {
+      const fd = new FormData(e.currentTarget);
+      await checkOk(await fetch("/api/admin/cars", { method: "POST", body: fd }));
+      setOpen(false);
+      onChange();
+    } catch (err: any) {
+      setError(err.message ?? "Failed to save listing.");
+    } finally {
+      setSaving(false);
     }
-    setOpen(false);
-    onChange();
+  }
+
+  async function handleEditSave(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const fd = new FormData(e.currentTarget);
+      fd.append("id", editingCar.id);
+      await checkOk(await fetch("/api/admin/cars", { method: "PATCH", body: fd }));
+      setEditingCar(null);
+      onChange();
+    } catch (err: any) {
+      setError(err.message ?? "Failed to update listing.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function toggleStatus(id: string, status: string) {
-    await fetch("/api/admin/cars", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id,
-        status: status === "for_sale" ? "sold" : "for_sale",
-      }),
-    });
-    onChange();
+    try {
+      await checkOk(
+        await fetch("/api/admin/cars", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id,
+            status: status === "for_sale" ? "sold" : "for_sale",
+          }),
+        })
+      );
+      onChange();
+    } catch (err: any) {
+      alert(err.message ?? "Failed to update status.");
+    }
   }
 
   async function remove(id: string) {
     if (!confirm("ဒီကားစာရင်းကို ဖျက်မှာ သေချာလား?")) return;
-    await fetch("/api/admin/cars", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    onChange();
+    try {
+      await checkOk(
+        await fetch("/api/admin/cars", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        })
+      );
+      onChange();
+    } catch (err: any) {
+      alert(err.message ?? "Failed to delete listing.");
+    }
   }
+
+  const fields: [string, string, string?][] = [
+    ["brand", "Brand"],
+    ["model", "Model"],
+    ["year", "Year", "number"],
+    ["power", "Power (e.g. 150 hp)"],
+    ["price", "Price (ကျပ်)", "number"],
+    ["mileage", "Mileage"],
+    ["transmission", "Transmission"],
+    ["fuel_type", "Fuel type"],
+    ["color", "Color"],
+  ];
 
   return (
     <div className="flex flex-col gap-4">
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          setOpen((v) => !v);
+          setEditingCar(null);
+        }}
         className="flex items-center justify-center gap-2 rounded-xl bg-amber py-3 font-display text-lg text-asphalt"
       >
         <Plus size={18} /> Sale ကားအသစ်ထည့်မည်
@@ -393,20 +476,14 @@ function CarsTab({ cars, onChange }: { cars: any[]; onChange: () => void }) {
 
       {open && (
         <form
-          onSubmit={handleSubmit}
+          onSubmit={handleCreate}
           className="flex flex-col gap-2.5 rounded-2xl border border-white/10 bg-surface p-4"
         >
           <input name="title" required placeholder="Title (e.g. Toyota Premio 2015)" className="input" />
           <div className="grid grid-cols-2 gap-2.5">
-            <input name="brand" placeholder="Brand" className="input" />
-            <input name="model" placeholder="Model" className="input" />
-            <input name="year" type="number" placeholder="Year" className="input" />
-            <input name="power" placeholder="Power (e.g. 150 hp)" className="input" />
-            <input name="price" type="number" placeholder="Price (ကျပ်)" className="input" />
-            <input name="mileage" placeholder="Mileage" className="input" />
-            <input name="transmission" placeholder="Transmission" className="input" />
-            <input name="fuel_type" placeholder="Fuel type" className="input" />
-            <input name="color" placeholder="Color" className="input" />
+            {fields.map(([name, placeholder, type]) => (
+              <input key={name} name={name} type={type ?? "text"} placeholder={placeholder} className="input" />
+            ))}
           </div>
           <textarea name="description" placeholder="Description" className="input min-h-20" />
           <label className="text-sm text-chrome">Cover image</label>
@@ -423,31 +500,98 @@ function CarsTab({ cars, onChange }: { cars: any[]; onChange: () => void }) {
       )}
 
       <div className="flex flex-col gap-3">
-        {cars.map((c: any) => (
-          <div
-            key={c.id}
-            className="flex items-center justify-between rounded-xl border border-white/10 bg-surface p-3"
-          >
-            <div>
-              <p className="font-display text-lg text-ivory">{c.title}</p>
-              <p className="text-xs text-chrome">
-                {c.status === "for_sale" ? "For sale" : "Sold"} ·{" "}
-                {c.price ? `${Number(c.price).toLocaleString()} ကျပ်` : "—"}
-              </p>
+        {cars.map((c: any) =>
+          editingCar?.id === c.id ? (
+            <form
+              key={c.id}
+              onSubmit={handleEditSave}
+              className="flex flex-col gap-2.5 rounded-2xl border border-amber/40 bg-surface p-4"
+            >
+              <input name="title" required defaultValue={c.title} placeholder="Title" className="input" />
+              <div className="grid grid-cols-2 gap-2.5">
+                {fields.map(([name, placeholder, type]) => (
+                  <input
+                    key={name}
+                    name={name}
+                    type={type ?? "text"}
+                    defaultValue={c[name] ?? ""}
+                    placeholder={placeholder}
+                    className="input"
+                  />
+                ))}
+              </div>
+              <textarea
+                name="description"
+                defaultValue={c.description ?? ""}
+                placeholder="Description"
+                className="input min-h-20"
+              />
+              <label className="text-sm text-chrome">
+                Replace cover image (leave empty to keep current)
+              </label>
+              <input
+                type="file"
+                name="cover_image"
+                accept="image/*"
+                className="text-sm text-chrome file:mr-3 file:rounded-lg file:border-0 file:bg-amber file:px-3 file:py-2 file:text-asphalt"
+              />
+              {error && <p className="text-sm text-ember">{error}</p>}
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 rounded-xl bg-amber py-3 font-display text-lg text-asphalt disabled:opacity-60"
+                >
+                  {saving ? "သိမ်းနေသည်…" : "ပြောင်းလဲမှု သိမ်းမည်"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingCar(null);
+                    setError(null);
+                  }}
+                  className="rounded-xl bg-surface2 px-4 text-ivory"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div
+              key={c.id}
+              className="flex items-center justify-between rounded-xl border border-white/10 bg-surface p-3"
+            >
+              <div>
+                <p className="font-display text-lg text-ivory">{c.title}</p>
+                <p className="text-xs text-chrome">
+                  {c.status === "for_sale" ? "For sale" : "Sold"} ·{" "}
+                  {c.price ? `${Number(c.price).toLocaleString()} ကျပ်` : "—"}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    setEditingCar(c);
+                    setOpen(false);
+                    setError(null);
+                  }}
+                  className="rounded-lg bg-surface2 px-2.5 py-1.5 text-xs text-chrome"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => toggleStatus(c.id, c.status)}
+                  className="rounded-lg bg-surface2 px-2.5 py-1.5 text-xs text-chrome"
+                >
+                  {c.status === "for_sale" ? "Mark sold" : "Mark for sale"}
+                </button>
+                <button onClick={() => remove(c.id)}>
+                  <Trash2 size={16} className="text-ember" />
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => toggleStatus(c.id, c.status)}
-                className="rounded-lg bg-surface2 px-2.5 py-1.5 text-xs text-chrome"
-              >
-                {c.status === "for_sale" ? "Mark sold" : "Mark for sale"}
-              </button>
-              <button onClick={() => remove(c.id)}>
-                <Trash2 size={16} className="text-ember" />
-              </button>
-            </div>
-          </div>
-        ))}
+          )
+        )}
       </div>
     </div>
   );
