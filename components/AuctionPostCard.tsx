@@ -39,7 +39,10 @@ export default function AuctionPostCard({
       />
 
       {photos.length > 1 && (
-        <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex gap-1">
+        <div
+          className="pointer-events-none absolute inset-x-3 z-20 flex gap-1"
+          style={{ top: "calc(env(safe-area-inset-top) + 3rem)" }}
+        >
           {photos.map((p, i) => (
             <span
               key={p.id}

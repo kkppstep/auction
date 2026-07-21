@@ -16,9 +16,15 @@ export default function BottomNav() {
   // Hide the shopper nav inside the admin area.
   if (pathname.startsWith("/admin")) return null;
 
+  const isImmersiveFeed = pathname === "/";
+
   return (
     <nav
-      className="fixed bottom-0 left-1/2 z-50 w-full max-w-md -translate-x-1/2 border-t border-white/10 bg-surface/95 backdrop-blur"
+      className={`fixed bottom-0 left-1/2 z-50 w-full max-w-md -translate-x-1/2 ${
+        isImmersiveFeed
+          ? "bg-gradient-to-t from-black/80 via-black/40 to-transparent"
+          : "border-t border-white/10 bg-surface/95 backdrop-blur"
+      }`}
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul className="flex items-stretch justify-around">

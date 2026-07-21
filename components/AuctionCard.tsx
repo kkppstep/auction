@@ -54,7 +54,7 @@ export default function AuctionCard({
   }
 
   return (
-    <div className="relative h-full w-full select-none overflow-hidden rounded-2xl bg-surface">
+    <div className="relative h-full w-full select-none overflow-hidden bg-surface">
       <Image
         src={photo.image_url}
         alt={caption ?? "ကားပုံ"}
@@ -66,7 +66,7 @@ export default function AuctionCard({
       />
 
       {/* bottom gradient + car info */}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent p-4 pb-6">
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent p-4 pb-24">
         {car?.title && (
           <p className="font-display text-2xl tracking-wide text-ivory">{car.title}</p>
         )}
@@ -74,7 +74,7 @@ export default function AuctionCard({
       </div>
 
       {/* TikTok-style right action rail */}
-      <div className="absolute bottom-24 right-3 flex flex-col items-center gap-5">
+      <div className="absolute bottom-28 right-3 flex flex-col items-center gap-5">
         <button
           onClick={toggleLike}
           className="flex flex-col items-center gap-1"

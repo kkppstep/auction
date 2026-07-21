@@ -77,7 +77,7 @@ export default function AuctionFeed() {
 
   if (loading) {
     return (
-      <div className="flex h-[calc(100vh-9rem)] items-center justify-center text-chrome">
+      <div className="fixed inset-0 mx-auto flex max-w-md items-center justify-center bg-asphalt text-chrome">
         Auction ကားများ တင်နေသည်…
       </div>
     );
@@ -85,7 +85,7 @@ export default function AuctionFeed() {
 
   if (posts.length === 0) {
     return (
-      <div className="flex h-[calc(100vh-9rem)] flex-col items-center justify-center gap-2 px-8 text-center text-chrome">
+      <div className="fixed inset-0 mx-auto flex max-w-md flex-col items-center justify-center gap-2 bg-asphalt px-8 text-center text-chrome">
         <p className="font-display text-2xl text-ivory">
           အခုလောလောဆယ် Auction ကားမရှိသေးပါ
         </p>
@@ -114,7 +114,14 @@ export default function AuctionFeed() {
       : { y: -offsetFor(transition.direction, "y"), opacity: 0 };
 
   return (
-    <div className="relative h-[calc(100vh-9rem)] w-full overflow-hidden px-3 pt-3">
+    <div className="fixed inset-0 mx-auto max-w-md overflow-hidden bg-asphalt">
+      {/* subtle floating wordmark instead of a boxed header — content stays full-bleed behind it */}
+      <div className="pointer-events-none absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-30">
+        <p className="font-display text-xl tracking-wide text-ivory drop-shadow-lg">
+          YBC <span className="text-amber">Auction</span>
+        </p>
+      </div>
+
       <AnimatePresence initial={false} mode="popLayout">
         <motion.div
           key={`${currentPost.id}-${photoIndex}`}
