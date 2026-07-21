@@ -14,6 +14,7 @@ import {
   Image as ImageIcon,
   Car,
 } from "lucide-react";
+import PushNotificationSetup from "@/components/PushNotificationSetup";
 
 type Tab = "photos" | "cars" | "offers" | "settings";
 
@@ -48,6 +49,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen pb-10">
+      <PushNotificationSetup />
       <header className="flex items-center justify-between border-b border-white/10 px-4 py-4">
         <h1 className="font-display text-2xl tracking-wide text-ivory">
           YBC <span className="text-amber">Admin</span>

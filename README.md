@@ -58,7 +58,41 @@ Log into `/admin/login`, go to **Settings**, and fill in your Viber number and/o
 Telegram username — this is what buyers get routed to when they tap **စျေး**.
 You can change this any time; nothing is hardcoded.
 
-## 5. Deploy
+## 5. Push notifications for new offers (optional but recommended)
+
+When a buyer submits a price offer, the API route calls `sendPushToAdmins()`
+which sends a push notification to every device registered in the
+`push_tokens` table. Registration only happens from inside `/admin/dashboard`
+running in the Android app (see the `ybc-android` repo) — regular website
+visitors are never prompted for push permission.
+
+To enable it:
+1. In Firebase Console → ⚙️ **Project settings → Service accounts →
+   Generate new private key**, download the JSON.
+2. Base64-encode it:
+   ```bash
+   base64 -w0 service-account.json   # Linux
+   base64 -i service-account.json    # macOS
+   ```
+3. Set `FIREBASE_SERVICE_ACCOUNT_JSON` in Vercel (Project Settings →
+   Environment Variables) to that base64 string, and redeploy.
+
+This is the **same Firebase project** you register the Android app under in
+`ybc-android`'s README (its `google-services.json` step) — one Firebase
+project covers both sides: the app receives, this key sends.
+
+Without this env var set, offers still save to Supabase and show up in the
+admin dashboard's **Offers** tab as normal — push notifications are just
+skipped silently.
+
+## 6. Native share in the Android app
+
+The Share button on auction cards calls `@capacitor/share`'s native share
+sheet when running inside the Android app (`Capacitor.isNativePlatform()`),
+and falls back to the browser's Web Share API / clipboard copy on the
+regular website. No extra setup needed — it's already wired up.
+
+## 7. Deploy
 
 Push to GitHub and import into Vercel. Add the same environment variables in
 Vercel's Project Settings, then deploy. Vercel gives you HTTPS by default,
@@ -73,11 +107,14 @@ app/
   account/page.tsx        Account — contact + admin login link
   admin/login/page.tsx     Admin login
   admin/dashboard/page.tsx  Admin dashboard (photos / cars / offers / settings)
-  api/offer/route.ts       Buyer submits a price offer
+  api/offer/route.ts       Buyer submits a price offer (also triggers push)
+  api/push/register/route.ts Device registers for push notifications
   api/admin/*               Admin-only API routes (protected by middleware.ts)
 components/                Auction feed, cards, offer modal, sale table, nav
+components/PushNotificationSetup.tsx  Registers admin device for push (dashboard only)
 lib/supabase/               Browser + server Supabase clients
 lib/auth.ts                 Admin session (signed JWT cookie)
+lib/push.ts                  Sends push notifications via Firebase Cloud Messaging
 supabase/schema.sql          Full DB schema + RLS + storage bucket
 ```
 

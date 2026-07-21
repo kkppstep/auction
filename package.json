@@ -9,6 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/push-notifications": "^6.0.2",
+    "@capacitor/share": "^6.0.2",
     "@supabase/supabase-js": "^2.45.4",
     "bcryptjs": "^2.4.3",
     "framer-motion": "^11.5.4",

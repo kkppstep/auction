@@ -38,6 +38,12 @@ export default function AuctionCard({
       url: typeof window !== "undefined" ? window.location.href : "",
     };
     try {
+      const { Capacitor } = await import("@capacitor/core");
+      if (Capacitor.isNativePlatform()) {
+        const { Share } = await import("@capacitor/share");
+        await Share.share(shareData);
+        return;
+      }
       if (navigator.share) {
         await navigator.share(shareData);
       } else {

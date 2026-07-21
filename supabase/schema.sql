@@ -85,6 +85,15 @@ on conflict (id) do nothing;
 create policy "public read car-photos" on storage.objects
   for select using (bucket_id = 'car-photos');
 
+-- 6. Push notification device tokens (admin's Android app instances)
+create table if not exists push_tokens (
+  id uuid primary key default gen_random_uuid(),
+  token text unique not null,
+  platform text default 'android',
+  created_at timestamptz default now()
+);
+alter table push_tokens enable row level security;
+-- no public policy — only accessible via the service role key (API routes)
 -- ---------------------------------------------------------------------
 -- Create your first admin account. Generate a bcrypt hash first, e.g.
 -- with Node:  node -e "console.log(require('bcryptjs').hashSync('yourpassword', 10))"
