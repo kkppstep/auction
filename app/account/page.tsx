@@ -1,8 +1,7 @@
-import Link from "next/link";
-
 export default function AccountPage() {
-  const viberNumber = "+959782020819";
+  const viberNumber = "959782020819";
   const telegramUsername = "doublepz";
+  const telegramChannel = "carauctionMaeSot";
 
   return (
     <div className="px-4 pt-4">
@@ -19,7 +18,9 @@ export default function AccountPage() {
         </p>
         <div className="mt-3 flex flex-col gap-2">
           <a
-            href={`viber://chat?number=${encodeURIComponent(viberNumber)}`}
+            href={`https://viber.me/${viberNumber}`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="rounded-xl bg-surface2 px-4 py-3 text-center font-display tracking-wide text-amber"
           >
             Viber တွင် ဆက်သွယ်မည်
@@ -32,6 +33,15 @@ export default function AccountPage() {
             className="rounded-xl bg-surface2 px-4 py-3 text-center font-display tracking-wide text-steel2"
           >
             Telegram တွင် ဆက်သွယ်မည်
+          </a>
+
+          <a
+            href={`https://t.me/${telegramChannel}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-xl bg-surface2 px-4 py-3 text-center font-display tracking-wide text-steel2"
+          >
+            Telegram Channel သို့ ဝင်ရောက်ရန်
           </a>
         </div>
       </section>
