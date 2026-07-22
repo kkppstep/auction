@@ -23,12 +23,29 @@ export default function AdminDashboard() {
   const [tab, setTab] = useState<Tab>("posts");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ text: string; kind: "ok" | "error" } | null>(null);
+
+  function showToast(text: string, kind: "ok" | "error" = "ok") {
+    setToast({ text, kind });
+    setTimeout(() => setToast(null), 2800);
+  }
 
   async function refresh() {
-    const res = await fetch("/api/admin/data");
-    const json = await res.json();
-    setData(json);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/admin/data");
+      if (!res.ok) throw new Error(`Failed to load dashboard data (${res.status}).`);
+      const json = await res.json();
+      setData(json);
+      setRefreshError(null);
+    } catch (err: any) {
+      // This is the failure mode that used to look like "delete does
+      // nothing" — the action succeeded but the list never reloaded.
+      // Now it's visible instead of silent.
+      setRefreshError(err?.message ?? "Failed to refresh dashboard data.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -50,6 +67,17 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen pb-10">
       <PushNotificationSetup />
+
+      {toast && (
+        <div
+          className={`fixed left-1/2 top-3 z-[70] -translate-x-1/2 rounded-full px-4 py-2 text-sm font-display tracking-wide shadow-lg ${
+            toast.kind === "ok" ? "bg-amber text-asphalt" : "bg-ember text-white"
+          }`}
+        >
+          {toast.text}
+        </div>
+      )}
+
       <header className="flex items-center justify-between border-b border-white/10 px-4 py-4">
         <h1 className="font-display text-2xl tracking-wide text-ivory">
           YBC <span className="text-amber">Admin</span>
@@ -77,16 +105,24 @@ export default function AdminDashboard() {
       </nav>
 
       <main className="px-4 py-5">
+        {refreshError && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-ember/40 bg-ember/10 px-4 py-3 text-sm text-ember">
+            <span>{refreshError}</span>
+            <button onClick={refresh} className="shrink-0 rounded-lg bg-ember/20 px-2.5 py-1">
+              ပြန်ကြိုးစားမည်
+            </button>
+          </div>
+        )}
         {loading || !data ? (
           <p className="text-chrome">Loading…</p>
         ) : tab === "posts" ? (
-          <PostsTab posts={data.posts} cars={data.cars} onChange={refresh} />
+          <PostsTab posts={data.posts} cars={data.cars} onChange={refresh} showToast={showToast} />
         ) : tab === "cars" ? (
-          <CarsTab cars={data.cars} onChange={refresh} />
+          <CarsTab cars={data.cars} onChange={refresh} showToast={showToast} />
         ) : tab === "offers" ? (
           <OffersTab offers={data.offers} />
         ) : (
-          <SettingsTab settings={data.settings} onChange={refresh} />
+          <SettingsTab settings={data.settings} onChange={refresh} showToast={showToast} />
         )}
       </main>
     </div>
@@ -113,10 +149,12 @@ function PostsTab({
   posts,
   cars,
   onChange,
+  showToast,
 }: {
   posts: any[];
   cars: any[];
-  onChange: () => void;
+  onChange: () => Promise<void>;
+  showToast: (text: string, kind?: "ok" | "error") => void;
 }) {
   const [files, setFiles] = useState<FileList | null>(null);
   const [caption, setCaption] = useState("");
@@ -169,7 +207,8 @@ function PostsTab({
       setFiles(null);
       setCaption("");
       setCarId("");
-      onChange();
+      showToast("Post တင်ပြီးပါပြီ");
+      await onChange();
     } catch (err: any) {
       setError(err.message ?? "Upload failed.");
     } finally {
@@ -187,9 +226,10 @@ function PostsTab({
           body: JSON.stringify({ id, is_active: !is_active }),
         })
       );
-      onChange();
+      showToast(is_active ? "ဝှက်လိုက်ပါပြီ" : "ပြသနေပါပြီ");
+      await onChange();
     } catch (err: any) {
-      alert(err.message ?? "Failed to update post visibility.");
+      showToast(err.message ?? "Failed to update post visibility.", "error");
     }
   }
 
@@ -203,9 +243,10 @@ function PostsTab({
         })
       );
       setEditingId(null);
-      onChange();
+      showToast("Caption ပြောင်းပြီးပါပြီ");
+      await onChange();
     } catch (err: any) {
-      alert(err.message ?? "Failed to save caption.");
+      showToast(err.message ?? "Failed to save caption.", "error");
     }
   }
 
@@ -219,9 +260,10 @@ function PostsTab({
           body: JSON.stringify({ id }),
         })
       );
-      onChange();
+      showToast("Post ဖျက်ပြီးပါပြီ");
+      await onChange();
     } catch (err: any) {
-      alert(err.message ?? "Failed to delete post.");
+      showToast(err.message ?? "Failed to delete post.", "error");
     }
   }
 
@@ -234,9 +276,10 @@ function PostsTab({
           body: JSON.stringify({ photoId }),
         })
       );
-      onChange();
+      showToast("ပုံဖျက်ပြီးပါပြီ");
+      await onChange();
     } catch (err: any) {
-      alert(err.message ?? "Failed to delete photo.");
+      showToast(err.message ?? "Failed to delete photo.", "error");
     }
   }
 
@@ -377,7 +420,15 @@ function PostsTab({
 
 /* ---------------- Sale Cars ---------------- */
 
-function CarsTab({ cars, onChange }: { cars: any[]; onChange: () => void }) {
+function CarsTab({
+  cars,
+  onChange,
+  showToast,
+}: {
+  cars: any[];
+  onChange: () => Promise<void>;
+  showToast: (text: string, kind?: "ok" | "error") => void;
+}) {
   const [open, setOpen] = useState(false);
   const [editingCar, setEditingCar] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
@@ -391,7 +442,8 @@ function CarsTab({ cars, onChange }: { cars: any[]; onChange: () => void }) {
       const fd = new FormData(e.currentTarget);
       await checkOk(await fetch("/api/admin/cars", { method: "POST", body: fd }));
       setOpen(false);
-      onChange();
+      showToast("Sale ကားအသစ် ထည့်ပြီးပါပြီ");
+      await onChange();
     } catch (err: any) {
       setError(err.message ?? "Failed to save listing.");
     } finally {
@@ -408,7 +460,8 @@ function CarsTab({ cars, onChange }: { cars: any[]; onChange: () => void }) {
       fd.append("id", editingCar.id);
       await checkOk(await fetch("/api/admin/cars", { method: "PATCH", body: fd }));
       setEditingCar(null);
-      onChange();
+      showToast("ကားအချက်အလက် ပြင်ဆင်ပြီးပါပြီ");
+      await onChange();
     } catch (err: any) {
       setError(err.message ?? "Failed to update listing.");
     } finally {
@@ -428,9 +481,10 @@ function CarsTab({ cars, onChange }: { cars: any[]; onChange: () => void }) {
           }),
         })
       );
-      onChange();
+      showToast(status === "for_sale" ? "ရောင်းပြီးအဖြစ် သတ်မှတ်ပြီးပါပြီ" : "ရောင်းရန် ပြန်ထားပြီးပါပြီ");
+      await onChange();
     } catch (err: any) {
-      alert(err.message ?? "Failed to update status.");
+      showToast(err.message ?? "Failed to update status.", "error");
     }
   }
 
@@ -444,9 +498,10 @@ function CarsTab({ cars, onChange }: { cars: any[]; onChange: () => void }) {
           body: JSON.stringify({ id }),
         })
       );
-      onChange();
+      showToast("ကားစာရင်း ဖျက်ပြီးပါပြီ");
+      await onChange();
     } catch (err: any) {
-      alert(err.message ?? "Failed to delete listing.");
+      showToast(err.message ?? "Failed to delete listing.", "error");
     }
   }
 
@@ -562,9 +617,19 @@ function CarsTab({ cars, onChange }: { cars: any[]; onChange: () => void }) {
               className="flex items-center justify-between rounded-xl border border-white/10 bg-surface p-3"
             >
               <div>
-                <p className="font-display text-lg text-ivory">{c.title}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-display text-lg text-ivory">{c.title}</p>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-display tracking-wide ${
+                      c.status === "for_sale"
+                        ? "bg-emerald-500/15 text-emerald-400"
+                        : "bg-white/10 text-chrome"
+                    }`}
+                  >
+                    {c.status === "for_sale" ? "ရောင်းရန်" : "ရောင်းပြီး"}
+                  </span>
+                </div>
                 <p className="text-xs text-chrome">
-                  {c.status === "for_sale" ? "For sale" : "Sold"} ·{" "}
                   {c.price ? `${Number(c.price).toLocaleString()} ကျပ်` : "—"}
                 </p>
               </div>
@@ -624,9 +689,11 @@ function OffersTab({ offers }: { offers: any[] }) {
 function SettingsTab({
   settings,
   onChange,
+  showToast,
 }: {
   settings: Record<string, string>;
-  onChange: () => void;
+  onChange: () => Promise<void>;
+  showToast: (text: string, kind?: "ok" | "error") => void;
 }) {
   const [viber, setViber] = useState(settings.admin_viber_number ?? "");
   const [telegram, setTelegram] = useState(settings.admin_telegram_username ?? "");
@@ -636,17 +703,25 @@ function SettingsTab({
   async function save(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    await fetch("/api/admin/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        admin_viber_number: viber,
-        admin_telegram_username: telegram,
-        preferred_channel: preferred,
-      }),
-    });
-    setSaving(false);
-    onChange();
+    try {
+      await checkOk(
+        await fetch("/api/admin/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            admin_viber_number: viber,
+            admin_telegram_username: telegram,
+            preferred_channel: preferred,
+          }),
+        })
+      );
+      showToast("Settings သိမ်းပြီးပါပြီ");
+      await onChange();
+    } catch (err: any) {
+      showToast(err.message ?? "Failed to save settings.", "error");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
