@@ -33,7 +33,7 @@ export default function AdminDashboard() {
 
   async function refresh() {
     try {
-      const res = await fetch("/api/admin/data");
+      const res = await fetch("/api/admin/data", { cache: "no-store" });
       if (!res.ok) throw new Error(`Failed to load dashboard data (${res.status}).`);
       const json = await res.json();
       setData(json);
