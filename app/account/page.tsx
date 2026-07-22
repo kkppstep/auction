@@ -1,13 +1,8 @@
 import Link from "next/link";
-import { supabaseAdmin } from "@/lib/supabase/server";
 
-export const dynamic = "force-dynamic";
-
-export default async function AccountPage() {
-  const { data: settings } = await supabaseAdmin
-    .from("settings")
-    .select("key, value");
-  const map = Object.fromEntries((settings ?? []).map((s) => [s.key, s.value]));
+export default function AccountPage() {
+  const viberNumber = "+959782020819";
+  const telegramUsername = "doublepz";
 
   return (
     <div className="px-4 pt-4">
@@ -23,33 +18,23 @@ export default async function AccountPage() {
           Auction ကားများနှင့် ပတ်သက်၍ တိုက်ရိုက်ဆက်သွယ်လိုပါက
         </p>
         <div className="mt-3 flex flex-col gap-2">
-          {map.admin_viber_number && (
-            <a
-              href={`viber://chat?number=${encodeURIComponent(
-                map.admin_viber_number
-              )}`}
-              className="rounded-xl bg-surface2 px-4 py-3 text-center font-display tracking-wide text-amber"
-            >
-              Viber တွင် ဆက်သွယ်မည်
-            </a>
-          )}
-          {map.admin_telegram_username && (
-            <a
-              href={`https://t.me/${map.admin_telegram_username}`}
-              target="_blank"
-              className="rounded-xl bg-surface2 px-4 py-3 text-center font-display tracking-wide text-steel2"
-            >
-              Telegram တွင် ဆက်သွယ်မည်
-            </a>
-          )}
+          <a
+            href={`viber://chat?number=${encodeURIComponent(viberNumber)}`}
+            className="rounded-xl bg-surface2 px-4 py-3 text-center font-display tracking-wide text-amber"
+          >
+            Viber တွင် ဆက်သွယ်မည်
+          </a>
+
+          <a
+            href={`https://t.me/${telegramUsername}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-xl bg-surface2 px-4 py-3 text-center font-display tracking-wide text-steel2"
+          >
+            Telegram တွင် ဆက်သွယ်မည်
+          </a>
         </div>
       </section>
-
-      <p className="mt-10 text-center">
-        <Link href="/admin/login" className="text-xs text-chrome/60 underline">
-          Admin login
-        </Link>
-      </p>
     </div>
   );
 }
