@@ -14,7 +14,6 @@ import {
   Image as ImageIcon,
   Car,
 } from "lucide-react";
-import PushNotificationSetup from "@/components/PushNotificationSetup";
 
 type Tab = "posts" | "cars" | "offers" | "settings";
 
@@ -66,7 +65,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen pb-10">
-      <PushNotificationSetup />
 
       {toast && (
         <div
@@ -203,6 +201,10 @@ function PostsTab({
         }
         setProgress({ done: i + 1, total: fileArray.length });
       }
+
+      // Best-effort — don't let a push failure make a successful upload
+      // look like it failed.
+      fetch(`/api/admin/posts/${postId}/notify`, { method: "POST" }).catch(() => {});
 
       setFiles(null);
       setCaption("");

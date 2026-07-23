@@ -51,11 +51,12 @@ async function getAccessToken(sa: {
 }
 
 /**
- * Sends a push notification to every registered admin device.
- * Silently no-ops if Firebase isn't configured, so local dev / early
- * deploys without push set up don't break the offer flow.
+ * Sends a push notification to every registered device (buyers who have
+ * the Android app installed). Silently no-ops if Firebase isn't
+ * configured, so local dev / early deploys without push set up don't
+ * break anything that triggers it.
  */
-export async function sendPushToAdmins(
+export async function sendPushToAllDevices(
   title: string,
   body: string,
   data: Record<string, string> = {}
