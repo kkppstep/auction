@@ -698,6 +698,7 @@ function SettingsTab({
   showToast: (text: string, kind?: "ok" | "error") => void;
 }) {
   const [viber, setViber] = useState(settings.admin_viber_number ?? "");
+  const [phone, setPhone] = useState(settings.admin_phone_number ?? "");
   const [telegram, setTelegram] = useState(settings.admin_telegram_username ?? "");
   const [preferred, setPreferred] = useState(settings.preferred_channel ?? "viber");
   const [saving, setSaving] = useState(false);
@@ -712,6 +713,7 @@ function SettingsTab({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             admin_viber_number: viber,
+            admin_phone_number: phone,
             admin_telegram_username: telegram,
             preferred_channel: preferred,
           }),
@@ -730,8 +732,12 @@ function SettingsTab({
     <form onSubmit={save} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-surface p-4">
       <h2 className="font-display text-xl text-ivory">Contact routing</h2>
       <label className="flex flex-col gap-1 text-sm text-chrome">
-        Admin Viber number
-        <input value={viber} onChange={(e) => setViber(e.target.value)} className="input" placeholder="09xxxxxxxxx" />
+        Admin Viber number (country code, no + or leading 0 — e.g. 959782020819)
+        <input value={viber} onChange={(e) => setViber(e.target.value)} className="input" placeholder="959782020819" />
+      </label>
+      <label className="flex flex-col gap-1 text-sm text-chrome">
+        Admin phone number (for the buyer's "Call" button)
+        <input value={phone} onChange={(e) => setPhone(e.target.value)} className="input" placeholder="+66943329162" />
       </label>
       <label className="flex flex-col gap-1 text-sm text-chrome">
         Admin Telegram username

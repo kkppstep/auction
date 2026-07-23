@@ -60,6 +60,7 @@ create table if not exists settings (
 
 insert into settings (key, value) values
   ('admin_viber_number', ''),
+  ('admin_phone_number', ''),
   ('admin_telegram_username', ''),
   ('preferred_channel', 'viber')
 on conflict (key) do nothing;
