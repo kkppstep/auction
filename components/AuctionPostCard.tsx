@@ -11,18 +11,21 @@ export type AuctionPost = {
 };
 
 /**
- * Purely presentational — photoIndex is owned by AuctionFeed, since a
- * single drag gesture on the outer card decides both photo (x-axis) and
- * post (y-axis) navigation. This component just renders the current photo
- * and the within-post progress dots.
+ * Purely presentational — photoIndex and liked state are owned by
+ * AuctionFeed. Likes belong to the post, not any one photo, and need to
+ * survive photo/post navigation remounts, so they can't live locally here.
  */
 export default function AuctionPostCard({
   post,
   photoIndex,
+  liked,
+  onToggleLike,
   onOffer,
 }: {
   post: AuctionPost;
   photoIndex: number;
+  liked: boolean;
+  onToggleLike: () => void;
   onOffer: (photo: AuctionPhoto) => void;
 }) {
   const photos = post.auction_photos;
@@ -34,6 +37,8 @@ export default function AuctionPostCard({
         photo={current}
         caption={post.caption}
         likesCount={post.likes_count}
+        liked={liked}
+        onToggleLike={onToggleLike}
         car={post.cars}
         onOffer={onOffer}
       />

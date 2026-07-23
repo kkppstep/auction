@@ -85,7 +85,7 @@ on conflict (id) do nothing;
 create policy "public read car-photos" on storage.objects
   for select using (bucket_id = 'car-photos');
 
--- 6. Push notification device tokens (admin's Android app instances)
+-- 6. Push notification device tokens (buyers who have the Android app installed)
 create table if not exists push_tokens (
   id uuid primary key default gen_random_uuid(),
   token text unique not null,
@@ -124,6 +124,35 @@ begin
     update auction_photos set post_id = new_post_id where id = r.id;
   end loop;
 end $$;
+
+-- 8. Individual likes per (post, device) — lets the count be real and
+-- shared across everyone, while still stopping one device from liking
+-- the same post infinitely.
+create table if not exists post_likes (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid references auction_posts(id) on delete cascade,
+  device_id text not null,
+  created_at timestamptz default now(),
+  unique (post_id, device_id)
+);
+alter table post_likes enable row level security;
+create policy "public read post_likes" on post_likes for select using (true);
+-- writes only via the service role key (API route) — keeps counting atomic
+
+-- Atomic increment/decrement so concurrent likes from different buyers
+-- never race each other into an incorrect count.
+create or replace function increment_post_likes(p_post_id uuid, p_delta int)
+returns int as $$
+declare
+  new_count int;
+begin
+  update auction_posts
+  set likes_count = greatest(0, likes_count + p_delta)
+  where id = p_post_id
+  returning likes_count into new_count;
+  return new_count;
+end;
+$$ language plpgsql security definer;
 
 -- ---------------------------------------------------------------------
 -- Create your first admin account. Generate a bcrypt hash first, e.g.

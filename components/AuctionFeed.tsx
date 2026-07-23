@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { getDeviceId } from "@/lib/deviceId";
 import AuctionPostCard, { AuctionPost } from "./AuctionPostCard";
 import { AuctionPhoto } from "./AuctionCard";
 import PriceOfferModal from "./PriceOfferModal";
@@ -13,6 +14,7 @@ type Transition = { axis: "x" | "y"; direction: 1 | -1 } | null;
 
 export default function AuctionFeed() {
   const [posts, setPosts] = useState<AuctionPost[]>([]);
+  const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
   const [postIndex, setPostIndex] = useState(0);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -22,12 +24,17 @@ export default function AuctionFeed() {
   useEffect(() => {
     let active = true;
     async function load() {
-      const { data } = await supabaseBrowser
-        .from("auction_posts")
-        .select("id, caption, likes_count, cars(title), auction_photos(id, image_url)")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .order("created_at", { foreignTable: "auction_photos", ascending: true });
+      const deviceId = getDeviceId();
+
+      const [{ data }, { data: likedRows }] = await Promise.all([
+        supabaseBrowser
+          .from("auction_posts")
+          .select("id, caption, likes_count, cars(title), auction_photos(id, image_url)")
+          .eq("is_active", true)
+          .order("created_at", { ascending: false })
+          .order("created_at", { foreignTable: "auction_photos", ascending: true }),
+        supabaseBrowser.from("post_likes").select("post_id").eq("device_id", deviceId),
+      ]);
 
       const withPhotos = ((data as unknown as AuctionPost[]) ?? []).filter(
         (p) => p.auction_photos?.length > 0
@@ -35,6 +42,7 @@ export default function AuctionFeed() {
 
       if (active) {
         setPosts(withPhotos);
+        setLikedPostIds(new Set((likedRows ?? []).map((r) => r.post_id)));
         setLoading(false);
       }
     }
@@ -45,6 +53,59 @@ export default function AuctionFeed() {
   }, []);
 
   const currentPost = posts[postIndex];
+
+  async function toggleLike(postId: string) {
+    const wasLiked = likedPostIds.has(postId);
+    const delta = wasLiked ? -1 : 1;
+
+    // Optimistic update — feels instant, reconciled with the server's
+    // authoritative count once the response comes back.
+    setLikedPostIds((prev) => {
+      const next = new Set(prev);
+      if (wasLiked) next.delete(postId);
+      else next.add(postId);
+      return next;
+    });
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId ? { ...p, likes_count: Math.max(0, p.likes_count + delta) } : p
+      )
+    );
+
+    try {
+      const res = await fetch("/api/likes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          post_id: postId,
+          device_id: getDeviceId(),
+          liked: !wasLiked,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      // Sync to the real server count in case of any race with another buyer.
+      if (typeof data.likes_count === "number") {
+        setPosts((prev) =>
+          prev.map((p) => (p.id === postId ? { ...p, likes_count: data.likes_count } : p))
+        );
+      }
+    } catch {
+      // Revert on failure.
+      setLikedPostIds((prev) => {
+        const next = new Set(prev);
+        if (wasLiked) next.add(postId);
+        else next.delete(postId);
+        return next;
+      });
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId ? { ...p, likes_count: Math.max(0, p.likes_count - delta) } : p
+        )
+      );
+    }
+  }
 
   function handleDragEnd(_: unknown, info: PanInfo) {
     const { x, y } = info.offset;
@@ -135,7 +196,13 @@ export default function AuctionFeed() {
           exit={exit}
           transition={{ type: "spring", damping: 30, stiffness: 260 }}
         >
-          <AuctionPostCard post={currentPost} photoIndex={photoIndex} onOffer={setOfferPhoto} />
+          <AuctionPostCard
+            post={currentPost}
+            photoIndex={photoIndex}
+            liked={likedPostIds.has(currentPost.id)}
+            onToggleLike={() => toggleLike(currentPost.id)}
+            onOffer={setOfferPhoto}
+          />
         </motion.div>
       </AnimatePresence>
 

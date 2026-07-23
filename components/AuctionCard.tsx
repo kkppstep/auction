@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import { Heart, Share2, Tag } from "lucide-react";
 
@@ -13,23 +12,19 @@ export default function AuctionCard({
   photo,
   caption,
   likesCount,
+  liked,
+  onToggleLike,
   car,
   onOffer,
 }: {
   photo: AuctionPhoto;
   caption: string | null;
   likesCount: number;
+  liked: boolean;
+  onToggleLike: () => void;
   car?: { title: string | null } | null;
   onOffer: (photo: AuctionPhoto) => void;
 }) {
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(likesCount ?? 0);
-
-  function toggleLike() {
-    setLiked((v) => !v);
-    setLikeCount((c) => (liked ? c - 1 : c + 1));
-  }
-
   async function handleShare() {
     const shareData = {
       title: "YBC — Your Board Car",
@@ -90,7 +85,7 @@ export default function AuctionCard({
       {/* TikTok-style right action rail */}
       <div className="absolute bottom-28 right-3 flex flex-col items-center gap-5">
         <button
-          onClick={toggleLike}
+          onClick={onToggleLike}
           className="flex flex-col items-center gap-1"
           aria-label="Love"
         >
@@ -101,7 +96,7 @@ export default function AuctionCard({
           >
             <Heart size={22} fill={liked ? "currentColor" : "none"} />
           </span>
-          <span className="text-xs tabular-nums text-ivory drop-shadow">{likeCount}</span>
+          <span className="text-xs tabular-nums text-ivory drop-shadow">{likesCount}</span>
         </button>
 
         <button
