@@ -55,12 +55,26 @@ export default function AuctionCard({
 
   return (
     <div className="relative h-full w-full select-none overflow-hidden bg-surface">
+      {/* blurred fill behind — keeps the immersive full-bleed look for
+          photos whose aspect ratio doesn't match the screen, without
+          cropping the actual photo */}
+      <Image
+        src={photo.image_url}
+        alt=""
+        fill
+        aria-hidden
+        draggable={false}
+        className="pointer-events-none scale-110 object-cover opacity-50 blur-2xl"
+        sizes="(max-width: 480px) 100vw, 448px"
+      />
+
+      {/* the real photo, shown in full — never cropped */}
       <Image
         src={photo.image_url}
         alt={caption ?? "ကားပုံ"}
         fill
         draggable={false}
-        className="pointer-events-none object-cover"
+        className="pointer-events-none object-contain"
         sizes="(max-width: 480px) 100vw, 448px"
         priority
       />
