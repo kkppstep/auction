@@ -120,7 +120,10 @@ export default function AdminDashboard() {
         ) : tab === "offers" ? (
           <OffersTab offers={data.offers} />
         ) : (
-          <SettingsTab settings={data.settings} onChange={refresh} showToast={showToast} />
+          <>
+            <SettingsTab settings={data.settings} onChange={refresh} showToast={showToast} />
+            <PushTestPanel showToast={showToast} />
+          </>
         )}
       </main>
     </div>
@@ -829,5 +832,51 @@ function SettingsTab({
         {saving ? "သိမ်းနေသည်…" : "သိမ်းမည်"}
       </button>
     </form>
+  );
+}
+
+function PushTestPanel({
+  showToast,
+}: {
+  showToast: (text: string, kind?: "ok" | "error") => void;
+}) {
+  const [testing, setTesting] = useState(false);
+
+  async function sendTestPush() {
+    setTesting(true);
+    try {
+      const res = await fetch("/api/admin/test-push", { method: "POST" });
+      const json = await res.json();
+      const push = json.push;
+      if (!push?.configured) {
+        showToast("Push notification setup လိုအပ်နေသေးပါသည် (Firebase)", "error");
+      } else if (push.targeted === 0) {
+        showToast("Push လက်ခံမည့် app user မရှိသေးပါ — device တစ်ခုမှ register မဖြစ်သေးပါ", "error");
+      } else if (push.sent > 0) {
+        showToast(`Test push ${push.sent}/${push.targeted} device ကို ပို့ပြီးပါပြီ`);
+      } else {
+        showToast("Push ပို့၍မရပါ — device token expired သို့မဟုတ် error ဖြစ်နေသည်", "error");
+      }
+    } catch (err: any) {
+      showToast(err.message ?? "Test push failed.", "error");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-white/10 bg-surface p-4">
+      <h2 className="font-display text-xl text-ivory">Push notification test</h2>
+      <p className="mt-1 text-sm text-chrome">
+        Post တစ်ခု အသစ်တင်စရာမလိုပဲ push pipeline အလုပ်လုပ်မလုပ် စစ်ဆေးနိုင်ပါသည်။
+      </p>
+      <button
+        onClick={sendTestPush}
+        disabled={testing}
+        className="mt-3 w-full rounded-xl bg-steel py-3 font-display text-lg text-ivory disabled:opacity-60"
+      >
+        {testing ? "ပို့နေသည်…" : "Test push ပို့မည်"}
+      </button>
+    </div>
   );
 }
