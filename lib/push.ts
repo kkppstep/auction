@@ -19,10 +19,7 @@ function loadServiceAccount(): {
   }
 }
 
-async function getAccessToken(sa: {
-  client_email: string;
-  private_key: string;
-}) {
+async function getAccessToken(sa: { client_email: string; private_key: string }) {
   const privateKey = await importPKCS8(sa.private_key, "RS256");
   const now = Math.floor(Date.now() / 1000);
 
@@ -50,29 +47,77 @@ async function getAccessToken(sa: {
   return data.access_token as string;
 }
 
+export type PushResult = {
+  configured: boolean;
+  targeted: number;
+  sent: number;
+  failed: number;
+  errors: string[];
+};
+
 /**
  * Sends a push notification to every registered device (buyers who have
- * the Android app installed). Silently no-ops if Firebase isn't
- * configured, so local dev / early deploys without push set up don't
- * break anything that triggers it.
+ * the Android app installed). Returns a diagnostic summary instead of
+ * failing silently, so the admin dashboard can actually show what
+ * happened rather than just hoping it worked.
  */
 export async function sendPushToAllDevices(
   title: string,
   body: string,
   data: Record<string, string> = {}
-) {
+): Promise<PushResult> {
   const sa = loadServiceAccount();
   if (!sa) {
-    console.warn(
-      "Push not configured (FIREBASE_SERVICE_ACCOUNT_JSON missing) — skipping."
-    );
-    return;
+    return {
+      configured: false,
+      targeted: 0,
+      sent: 0,
+      failed: 0,
+      errors: ["FIREBASE_SERVICE_ACCOUNT_JSON is not set on the server."],
+    };
   }
 
-  const { data: tokenRows } = await supabaseAdmin.from("push_tokens").select("token");
-  if (!tokenRows || tokenRows.length === 0) return;
+  const { data: tokenRows, error: tokenError } = await supabaseAdmin
+    .from("push_tokens")
+    .select("token");
 
-  const accessToken = await getAccessToken(sa);
+  if (tokenError) {
+    return {
+      configured: true,
+      targeted: 0,
+      sent: 0,
+      failed: 0,
+      errors: [`Could not read push_tokens: ${tokenError.message}`],
+    };
+  }
+
+  if (!tokenRows || tokenRows.length === 0) {
+    return {
+      configured: true,
+      targeted: 0,
+      sent: 0,
+      failed: 0,
+      errors: [
+        "No devices are registered yet — no buyer has opened the app and granted notification permission.",
+      ],
+    };
+  }
+
+  let accessToken: string;
+  try {
+    accessToken = await getAccessToken(sa);
+  } catch (err: any) {
+    return {
+      configured: true,
+      targeted: tokenRows.length,
+      sent: 0,
+      failed: tokenRows.length,
+      errors: [`Firebase auth failed: ${err?.message ?? String(err)}`],
+    };
+  }
+
+  let sent = 0;
+  const errors: string[] = [];
 
   await Promise.all(
     tokenRows.map(async ({ token }) => {
@@ -96,17 +141,27 @@ export async function sendPushToAllDevices(
           }
         );
 
-        if (!res.ok) {
+        if (res.ok) {
+          sent++;
+        } else {
           const errText = await res.text();
-          console.error("FCM send failed:", errText);
+          errors.push(errText.slice(0, 200));
           // Token is stale/uninstalled — stop trying to notify it.
           if (res.status === 404 || errText.includes("UNREGISTERED")) {
             await supabaseAdmin.from("push_tokens").delete().eq("token", token);
           }
         }
-      } catch (err) {
-        console.error("FCM send error:", err);
+      } catch (err: any) {
+        errors.push(err?.message ?? String(err));
       }
     })
   );
+
+  return {
+    configured: true,
+    targeted: tokenRows.length,
+    sent,
+    failed: tokenRows.length - sent,
+    errors: errors.slice(0, 5), // cap so one bad batch doesn't flood a response
+  };
 }

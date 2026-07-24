@@ -157,8 +157,12 @@ function PostsTab({
   const [files, setFiles] = useState<FileList | null>(null);
   const [caption, setCaption] = useState("");
   const [carId, setCarId] = useState("");
+  const [sendPush, setSendPush] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [uploadPreview, setUploadPreview] = useState<{ caption: string; photos: any[] } | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCaption, setEditCaption] = useState("");
@@ -180,42 +184,78 @@ function PostsTab({
       if (!postRes.ok) throw new Error(postJson.error);
       const postId = postJson.post.id;
 
-      // 2. Upload photos one at a time into that post. Sending 50+ photos
-      // in a single request risks hitting Vercel's request size/time
-      // limits, so each photo is its own small request instead — this
-      // batch becomes one swipeable post, exactly like a single upload
-      // session becoming one post in a feed.
+      // 2. Upload photos into that post with a few running concurrently
+      // (fast, and still safely below Vercel's per-request limits since
+      // each request only ever carries one photo) — and show each one
+      // in a live preview as it lands, instead of a blank wait until the
+      // whole batch finishes.
       const fileArray = Array.from(files);
       setProgress({ done: 0, total: fileArray.length });
+      setUploadPreview({ caption, photos: [] });
 
-      for (let i = 0; i < fileArray.length; i++) {
-        const fd = new FormData();
-        fd.append("file", fileArray[i]);
-        const res = await fetch(`/api/admin/posts/${postId}/photos`, {
-          method: "POST",
-          body: fd,
-        });
-        if (!res.ok) {
+      const CONCURRENCY = 4;
+      let nextIndex = 0;
+      let uploadError: string | null = null;
+
+      async function worker() {
+        while (nextIndex < fileArray.length && !uploadError) {
+          const i = nextIndex++;
+          const fd = new FormData();
+          fd.append("file", fileArray[i]);
+          const res = await fetch(`/api/admin/posts/${postId}/photos`, {
+            method: "POST",
+            body: fd,
+          });
+          if (!res.ok) {
+            const json = await res.json();
+            uploadError = `Photo ${i + 1}/${fileArray.length}: ${json.error}`;
+            return;
+          }
           const json = await res.json();
-          throw new Error(`Photo ${i + 1}/${fileArray.length}: ${json.error}`);
+          setProgress((p) => (p ? { done: p.done + 1, total: p.total } : p));
+          setUploadPreview((prev) =>
+            prev ? { ...prev, photos: [...prev.photos, json.photo] } : prev
+          );
         }
-        setProgress({ done: i + 1, total: fileArray.length });
       }
 
-      // Best-effort — don't let a push failure make a successful upload
-      // look like it failed.
-      fetch(`/api/admin/posts/${postId}/notify`, { method: "POST" }).catch(() => {});
+      await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+      if (uploadError) throw new Error(uploadError);
 
       setFiles(null);
       setCaption("");
       setCarId("");
-      showToast("Post တင်ပြီးပါပြီ");
+
+      if (sendPush) {
+        try {
+          const notifyRes = await fetch(`/api/admin/posts/${postId}/notify`, {
+            method: "POST",
+          });
+          const notifyJson = await notifyRes.json();
+          const push = notifyJson.push;
+          if (!push?.configured) {
+            showToast("Post တင်ပြီးပါပြီ — Push notification setup လိုအပ်နေသေးပါသည်", "error");
+          } else if (push.targeted === 0) {
+            showToast("Post တင်ပြီးပါပြီ — Push လက်ခံမည့် app user မရှိသေးပါ", "error");
+          } else if (push.sent > 0) {
+            showToast(`Post တင်ပြီးပါပြီ — Push ${push.sent}/${push.targeted} ကို ပို့ပြီးပါပြီ`);
+          } else {
+            showToast("Post တင်ပြီးပါပြီ — Push ပို့၍မရပါ (device token expired?)", "error");
+          }
+        } catch {
+          showToast("Post တင်ပြီးပါပြီ — Push ပို့ရာတွင် error ဖြစ်သည်", "error");
+        }
+      } else {
+        showToast("Post တင်ပြီးပါပြီ");
+      }
+
       await onChange();
     } catch (err: any) {
       setError(err.message ?? "Upload failed.");
     } finally {
       setUploading(false);
       setProgress(null);
+      setUploadPreview(null);
     }
   }
 
@@ -334,6 +374,15 @@ function PostsTab({
             </p>
           </div>
         )}
+        <label className="flex items-center gap-2 text-sm text-chrome">
+          <input
+            type="checkbox"
+            checked={sendPush}
+            onChange={(e) => setSendPush(e.target.checked)}
+            className="h-4 w-4 accent-amber"
+          />
+          Post တင်ပြီးရင် app user များကို Push notification ပို့မည်
+        </label>
         <button
           type="submit"
           disabled={uploading}
@@ -342,6 +391,28 @@ function PostsTab({
           <Upload size={18} /> {uploading ? "တင်နေသည်…" : "Post အသစ်တင်မည်"}
         </button>
       </form>
+
+      {uploadPreview && uploadPreview.photos.length > 0 && (
+        <div className="rounded-2xl border border-amber/30 bg-surface p-3">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-amber" />
+            <p className="text-xs text-chrome">
+              တင်နေဆဲ — {uploadPreview.photos.length} ပုံ ပြီးပြီ
+            </p>
+          </div>
+          <div className="no-scrollbar flex gap-2 overflow-x-auto">
+            {uploadPreview.photos.map((p: any) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={p.id}
+                src={p.image_url}
+                alt=""
+                className="h-24 w-24 shrink-0 rounded-lg object-cover"
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-4">
         {posts.map((post: any) => (
