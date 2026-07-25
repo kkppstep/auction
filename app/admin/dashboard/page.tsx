@@ -777,6 +777,9 @@ function SettingsTab({
   const [telegram, setTelegram] = useState(settings.admin_telegram_username ?? "");
   const [preferred, setPreferred] = useState(settings.preferred_channel ?? "viber");
   const [youtubeLive, setYoutubeLive] = useState(settings.youtube_live_video_id ?? "");
+  const [apkpureUrl, setApkpureUrl] = useState(settings.apkpure_url ?? "");
+  const [googlePlayUrl, setGooglePlayUrl] = useState(settings.google_play_url ?? "");
+  const [appStoreUrl, setAppStoreUrl] = useState(settings.app_store_url ?? "");
   const [saving, setSaving] = useState(false);
 
   async function save(e: React.FormEvent) {
@@ -800,6 +803,9 @@ function SettingsTab({
             admin_telegram_username: telegram,
             preferred_channel: preferred,
             youtube_live_video_id: cleanYoutubeId ?? "",
+            apkpure_url: apkpureUrl,
+            google_play_url: googlePlayUrl,
+            app_store_url: appStoreUrl,
           }),
         })
       );
@@ -851,6 +857,33 @@ function SettingsTab({
             ? "🔴 App ရဲ့ Live tab မှာ ဒီ video ကို ပြပါလိမ့်မည်။ Stream ပြီးရင် ဒီ box ကို ရှင်းပြီး Save နှိပ်ပါ။"
             : "Stream စတင်ရင် link ကူးထည့်ပါ — App ရဲ့ Live tab မှာ ချက်ချင်း ပေါ်လာပါလိမ့်မည်။"}
         </p>
+      </div>
+
+      <div className="mt-2 border-t border-white/10 pt-3">
+        <p className="mb-2 text-sm font-medium text-ivory">App Download links</p>
+        <p className="mb-2 text-xs text-chrome">
+          ဗလာထားရင် website ရဲ့ Download page မှာ "မကြာမီ" ပြပါလိမ့်မည်။
+        </p>
+        <div className="flex flex-col gap-2">
+          <input
+            value={apkpureUrl}
+            onChange={(e) => setApkpureUrl(e.target.value)}
+            className="input"
+            placeholder="APKPure link"
+          />
+          <input
+            value={googlePlayUrl}
+            onChange={(e) => setGooglePlayUrl(e.target.value)}
+            className="input"
+            placeholder="Google Play link"
+          />
+          <input
+            value={appStoreUrl}
+            onChange={(e) => setAppStoreUrl(e.target.value)}
+            className="input"
+            placeholder="App Store link"
+          />
+        </div>
       </div>
 
       <button

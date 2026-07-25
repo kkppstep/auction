@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Gauge, Car, UserRound } from "lucide-react";
+import { Download, Gauge, Car, UserRound } from "lucide-react";
 
 const TABS = [
-  { href: "/", label: "Auction", icon: Gauge },
+  { href: "/", label: "Download", icon: Download },
+  { href: "/auction", label: "Auction", icon: Gauge },
   { href: "/sale", label: "Sale", icon: Car },
   { href: "/account", label: "Account", icon: UserRound },
 ];
@@ -16,7 +17,11 @@ export default function BottomNav() {
   // Hide the shopper nav inside the admin area.
   if (pathname.startsWith("/admin")) return null;
 
-  const isImmersiveFeed = pathname === "/";
+  // The Auction feed is the one full-bleed, immersive, fixed-position page —
+  // everything else (including the new Download home page) is a normal
+  // scrollable page, so the nav stays a solid bar rather than a see-through
+  // overlay.
+  const isImmersiveFeed = pathname === "/auction";
 
   return (
     <nav
