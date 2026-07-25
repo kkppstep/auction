@@ -62,7 +62,8 @@ insert into settings (key, value) values
   ('admin_viber_number', ''),
   ('admin_phone_number', ''),
   ('admin_telegram_username', ''),
-  ('preferred_channel', 'viber')
+  ('preferred_channel', 'viber'),
+  ('youtube_live_video_id', '')
 on conflict (key) do nothing;
 
 -- Row Level Security: the browser (anon key) may only READ public data.

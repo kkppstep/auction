@@ -14,6 +14,7 @@ import {
   Image as ImageIcon,
   Car,
 } from "lucide-react";
+import { extractYouTubeId } from "@/lib/youtube";
 
 type Tab = "posts" | "cars" | "offers" | "settings";
 
@@ -775,12 +776,20 @@ function SettingsTab({
   const [phone, setPhone] = useState(settings.admin_phone_number ?? "");
   const [telegram, setTelegram] = useState(settings.admin_telegram_username ?? "");
   const [preferred, setPreferred] = useState(settings.preferred_channel ?? "viber");
+  const [youtubeLive, setYoutubeLive] = useState(settings.youtube_live_video_id ?? "");
   const [saving, setSaving] = useState(false);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
+      const cleanYoutubeId = youtubeLive.trim() ? extractYouTubeId(youtubeLive) : "";
+      if (youtubeLive.trim() && !cleanYoutubeId) {
+        showToast("YouTube link ကို နားမလည်ပါ — URL သို့မဟုတ် video ID ကို ပြန်စစ်ပါ", "error");
+        setSaving(false);
+        return;
+      }
+
       await checkOk(
         await fetch("/api/admin/settings", {
           method: "POST",
@@ -790,9 +799,11 @@ function SettingsTab({
             admin_phone_number: phone,
             admin_telegram_username: telegram,
             preferred_channel: preferred,
+            youtube_live_video_id: cleanYoutubeId ?? "",
           }),
         })
       );
+      setYoutubeLive(cleanYoutubeId ?? "");
       showToast("Settings သိမ်းပြီးပါပြီ");
       await onChange();
     } catch (err: any) {
@@ -824,6 +835,24 @@ function SettingsTab({
           <option value="telegram">Telegram</option>
         </select>
       </label>
+
+      <div className="mt-2 border-t border-white/10 pt-3">
+        <label className="flex flex-col gap-1 text-sm text-chrome">
+          YouTube Live link (Auction ကား ပြသချက်)
+          <input
+            value={youtubeLive}
+            onChange={(e) => setYoutubeLive(e.target.value)}
+            className="input"
+            placeholder="https://youtube.com/watch?v=... သို့မဟုတ် video ID"
+          />
+        </label>
+        <p className="mt-1.5 text-xs text-chrome">
+          {youtubeLive
+            ? "🔴 App ရဲ့ Live tab မှာ ဒီ video ကို ပြပါလိမ့်မည်။ Stream ပြီးရင် ဒီ box ကို ရှင်းပြီး Save နှိပ်ပါ။"
+            : "Stream စတင်ရင် link ကူးထည့်ပါ — App ရဲ့ Live tab မှာ ချက်ချင်း ပေါ်လာပါလိမ့်မည်။"}
+        </p>
+      </div>
+
       <button
         type="submit"
         disabled={saving}
