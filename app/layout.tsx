@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Inter } from "next/font/google";
 import "./globals.css";
-import BottomNav from "@/components/BottomNav";
 
 const display = Barlow_Condensed({
   subsets: ["latin"],
@@ -37,6 +36,14 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+// Deliberately minimal — this app has two very different shells:
+//   1. The phone-app-style shop (Auction/Sale/Account), constrained width
+//      + bottom tab nav, defined in app/(shop)/layout.tsx
+//   2. Everything else (the standalone /download landing page, /admin),
+//      each with their own full-width or custom layout
+// Keeping this root layout to just html/body/fonts lets each section look
+// like what it actually is, instead of every page being forced into the
+// same phone-width app shell.
 export default function RootLayout({
   children,
 }: {
@@ -45,10 +52,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body className="font-body bg-asphalt text-ivory min-h-screen antialiased">
-        <div className="mx-auto flex min-h-screen max-w-md flex-col">
-          <main className="flex-1 pb-20">{children}</main>
-          <BottomNav />
-        </div>
+        {children}
         <script
           dangerouslySetInnerHTML={{
             __html: `

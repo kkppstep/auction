@@ -2,26 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Download, Gauge, Car, UserRound } from "lucide-react";
+import { Gauge, Car, UserRound } from "lucide-react";
 
 const TABS = [
-  { href: "/", label: "Download", icon: Download },
-  { href: "/auction", label: "Auction", icon: Gauge },
+  { href: "/", label: "Auction", icon: Gauge },
   { href: "/sale", label: "Sale", icon: Car },
   { href: "/account", label: "Account", icon: UserRound },
 ];
 
+// Only ever rendered from app/(shop)/layout.tsx now — /download and /admin
+// each have their own separate layout that doesn't include this at all, so
+// no pathname-based hiding logic is needed here anymore.
 export default function BottomNav() {
   const pathname = usePathname();
-
-  // Hide the shopper nav inside the admin area.
-  if (pathname.startsWith("/admin")) return null;
-
-  // The Auction feed is the one full-bleed, immersive, fixed-position page —
-  // everything else (including the new Download home page) is a normal
-  // scrollable page, so the nav stays a solid bar rather than a see-through
-  // overlay.
-  const isImmersiveFeed = pathname === "/auction";
+  const isImmersiveFeed = pathname === "/";
 
   return (
     <nav
