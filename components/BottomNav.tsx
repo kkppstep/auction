@@ -5,17 +5,17 @@ import { usePathname } from "next/navigation";
 import { Gauge, Car, UserRound } from "lucide-react";
 
 const TABS = [
-  { href: "/", label: "Auction", icon: Gauge },
+  { href: "/auction", label: "Auction", icon: Gauge },
   { href: "/sale", label: "Sale", icon: Car },
   { href: "/account", label: "Account", icon: UserRound },
 ];
 
-// Only ever rendered from app/(shop)/layout.tsx now — /download and /admin
-// each have their own separate layout that doesn't include this at all, so
-// no pathname-based hiding logic is needed here anymore.
+// Only ever rendered from app/(shop)/layout.tsx now — /download (the real
+// homepage, at "/") and /admin each have their own separate layout that
+// doesn't include this at all.
 export default function BottomNav() {
   const pathname = usePathname();
-  const isImmersiveFeed = pathname === "/";
+  const isImmersiveFeed = pathname === "/auction";
 
   return (
     <nav
